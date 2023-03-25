@@ -4,6 +4,6 @@
   line_length: 120,
   import_deps: [:tesla],
   locals_without_parens: [
-    url: 1
+    scope: 1
   ]
 ]
