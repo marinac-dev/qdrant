@@ -1,3 +1,4 @@
+defmodule Qdrant.Api.Http.Collections do
   @moduledoc """
   Qdrant API Collections.
 
@@ -12,7 +13,7 @@
   Get list name of all existing collections.
 
   ## Example
-      iex> Qdrant.Api.Http.Collections.get_collections()
+      iex> Qdrant.Api.Http.Collections.list_collections()
       {:ok, %Tesla.Env{status: 200,
         body: %{
             "result" => %{"collections" => [...]},
@@ -22,8 +23,8 @@
         }
       }
   """
-  @spec get_collections() :: {:ok, Tesla.Env.t()} | {:error, any()}
-  def get_collections() do
+  @spec list_collections() :: {:ok, Tesla.Env.t()} | {:error, any()}
+  def list_collections() do
     get("")
   end
 
@@ -35,7 +36,7 @@
   - collection_name (required) : name of the collection
 
   ## Example
-      iex> Qdrant.Api.Http.Collections.get_collection("my_collection")
+      iex> Qdrant.Api.Http.Collections.collection_info("my_collection")
       {:ok, %Tesla.Env{status: 200,
         body: %{
             "result" => %{
@@ -50,8 +51,8 @@
         }
       }
   """
-  @spec get_collection(String.t()) :: {:ok, map()} | {:error, any()}
-  def get_collection(collection_name) do
+  @spec collection_info(String.t()) :: {:ok, map()} | {:error, any()}
+  def collection_info(collection_name) do
     get("/#{collection_name}")
   end
 
