@@ -7,8 +7,39 @@ defmodule Qdrant.Api.Http.Collections do
 
   use Qdrant.Api.Http.Client
 
+  @type vector_params :: %{size: integer(), distance: String.t()}
+
+  # * Update aliases of the collections
+  @type delete_alias :: %{alias_name: String.t()}
+  @type create_alias :: %{alias_name: String.t(), collection_name: String.t()}
+  @type rename_alias :: %{old_alias_name: String.t(), new_alias_name: String.t()}
+  @type alias_actions_list :: %{actions: [delete_alias | create_alias | rename_alias]}
+
+  # * Create index for the collection field
+  @type ordering :: :weak | :medium | :strong
+  @type index_body_type :: :keyword | :integer | :float | :geo | :text
+  @type tokenizer_type :: :prefix | :whitespace | :word
+  @type field_schema :: %{
+          type: index_body_type,
+          tokenizers: tokenizer_type,
+          min_token_len: integer(),
+          max_token_len: integer(),
+          lowercase: boolean()
+        }
+
+  @type body_schema :: %{field_name: String.t(), field_schema: field_schema}
+
+  # * Update collection cluster setup
+  @type shadred_operation_params :: %{shard_id: integer(), from_peer_id: integer(), to_peer_id: integer()}
+  @type drop_replica_params :: %{shard_id: integer(), peer_id: integer()}
+  @type cluster_update_body ::
+          %{move_shard: shadred_operation_params}
+          | %{replicate_shard: shadred_operation_params}
+          | %{abort_transfer: shadred_operation_params}
+          | %{drop_replica: drop_replica_params}
+
   @doc false
-  scope("/collections")
+  scope "/collections"
 
   @doc """
   Get list name of all existing collections. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/get_collection)
@@ -34,7 +65,7 @@ defmodule Qdrant.Api.Http.Collections do
 
   ## Path parameters
 
-  - collection_name **required** : name of the collection
+  - collection_name **required**: name of the collection
 
   ## Example
       iex> Qdrant.Api.Http.Collections.collection_info("my_collection")
@@ -90,7 +121,7 @@ defmodule Qdrant.Api.Http.Collections do
 
   - `quantization_config` *optional*: Default: `null`. \m Quantization parameters. If none - quantization is disabled.
 
-  ## Request sample
+  ## Request sample (json)
 
   ```json
   {
@@ -128,11 +159,11 @@ defmodule Qdrant.Api.Http.Collections do
     "quantization_config": null
   }
   ```
-
   """
+  # TODO: add type for body
   @spec create_collection(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
   def create_collection(name, body, timeout \\ nil) do
-    path = "/#{name}" <> if timeout, do: "?timeout=#{timeout}", else: ""
+    path = "/#{name}" <> timeout_query(timeout)
     put(path, body)
   end
 
@@ -153,7 +184,7 @@ defmodule Qdrant.Api.Http.Collections do
 
   - `params` *optional*: Collection base params. If none - values from service configuration file are used.
 
-  ## Request sample
+  ## Request sample (json)
 
   ```json
   {
@@ -174,10 +205,10 @@ defmodule Qdrant.Api.Http.Collections do
   }
   ```
   """
-
+  # TODO: add type for body
   @spec update_collection(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
   def update_collection(collection_name, body, timeout \\ nil) do
-    path = "/#{collection_name}" <> if timeout, do: "?timeout=#{timeout}", else: ""
+    path = "/#{collection_name}" <> timeout_query(timeout)
     patch(path, body)
   end
 
@@ -194,7 +225,183 @@ defmodule Qdrant.Api.Http.Collections do
   """
   @spec delete_collection(String.t(), integer() | nil) :: {:ok, map()} | {:error, any()}
   def delete_collection(collection_name, timeout \\ nil) do
-    path = "/#{collection_name}" <> if timeout, do: "?timeout=#{timeout}", else: ""
+    path = "/#{collection_name}" <> timeout_query(timeout)
     delete(path)
   end
+
+  @doc """
+  Update aliases of the collections [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/update_aliases)
+
+  ## Query parameters
+
+  - timeout *optional* : Wait for operation commit timeout in seconds. If timeout is reached - request will return with service error.
+
+  ## Request body schema
+
+  - `actions` *required*: List of actions to perform. Create_alias or delete_alias or rename_alias.
+
+
+  ## Example
+
+      iex> Qdrant.update_aliases(%{
+      ...>   actions: [
+      ...>     %{create_alias: %{alias: "alias_name", collection: "collection_name"}},
+      ...>     %{delete_alias: %{alias: "alias_name"}},
+      ...>     %{rename_alias: %{alias: "alias_name", new_alias: "new_alias_name"}}
+      ...>   ]
+      ...> })
+      {:ok, %{"result" => true, "status" => "ok", "time" => 0}}
+
+  """
+  @spec update_aliases(alias_actions_list(), integer() | nil) :: {:ok, map()} | {:error, any()}
+  def update_aliases(body, timeout \\ nil) do
+    path = "/aliases" <> timeout_query(timeout)
+    post(path, body)
+  end
+
+  @doc """
+  Create index for field in collection [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/create_field_index)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `field_name` *required* : Name of the field to index
+
+  - `field_schema` *required* : Type of the field to index
+
+  ## Example
+
+      iex> Qdrant.create_field_index("collection_name", %{field_name: "field_name", field_schema: "field_schema"})
+      {:ok, %{"status" => "ok", "time" => 0, "result" => %{"operation_id" => 42, status: "acknowledged"} }}}}
+  """
+  @spec create_field_index(String.t(), body_schema(), boolean(), ordering() | nil) :: {:ok, map()} | {:error, any()}
+  def create_field_index(collection_name, %{field_name: _} = body, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/index?"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    put(path, body)
+  end
+
+  @doc """
+  Delete index for field in collection [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/delete_field_index)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection
+
+  - field_name **required** : Name of the field where to delete the index
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Example
+
+      iex> Qdrant.delete_field_index("collection_name", "field_name")
+      {:ok, %{"status" => "ok", "time" => 0, "result" => %{"operation_id" => 42, status: "acknowledged"} }}}}
+  """
+
+  @spec delete_field_index(String.t(), String.t(), boolean(), ordering() | nil) :: {:ok, map()} | {:error, any()}
+  def delete_field_index(collection_name, field_name, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/index/#{field_name}?"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    delete(path)
+  end
+
+  @doc """
+  Get cluster information for a collection [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/collection_cluster_info)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to retrieve the cluster info for
+
+  ## Example
+
+      iex> Qdrant.collection_cluster_info("collection_name")
+      {:ok, %{"status" => "ok", "time" => 0, "result" => %{"operation_id" => 42, status: "acknowledged"} }}}}
+  """
+  @spec collection_cluster_info(String.t()) :: {:ok, map()} | {:error, any()}
+  def collection_cluster_info(collection_name) do
+    path = "/#{collection_name}/cluster"
+    get(path)
+  end
+
+  @doc """
+  Update collection cluster setup [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/update_collection_cluster)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection on which to to apply the cluster update operation
+
+  ## Query parameters
+
+  - `timeout` *optional* : Wait for operation commit timeout in seconds. If timeout is reached - request will return with service error.
+
+  ## Request body schema
+
+  - `move_shard` or `replicate_shard` or `abort_transfer` or `drop_replica` **required** : List of actions to perform.
+
+  ## Example
+
+      iex> Qdrant.update_collection_cluster("collection_name", %{
+      ...>   move_shard: %{
+      ...>     shard_id: 1,
+      ...>     to_peer_id: 42,
+      ...>     from_peer_id: 69
+      ...>   }
+      ...> })
+      {:ok, %{"status" => "ok", "time" => 0, "result" => %{"operation_id" => 42, status: "acknowledged"} }}}}
+
+      iex> Qdrant.update_collection_cluster("collection_name", %{
+      ...>   drop_replica: %{
+      ...>     shard_id: 1,
+      ...>     peer_id: 42
+      ...>   }
+      ...> })
+      {:ok, %{"status" => "ok", "time" => 0, "result" => %{"operation_id" => 42, status: "acknowledged"} }}}}
+  """
+  @spec update_collection_cluster(String.t(), cluster_update_body(), integer() | nil) :: {:ok, map()} | {:error, any()}
+  def update_collection_cluster(collection_name, body, timeout \\ nil) do
+    path = "/#{collection_name}/cluster" <> timeout_query(timeout)
+    post(path, body)
+  end
+
+  @doc """
+  Get list of all aliases for a collection [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/get_collection_aliases)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to retrieve the aliases for
+
+  ## Example
+
+      iex> Qdrant.get_collection_aliases("collection_name")
+      {:ok, %{"status" => "ok", "time" => 0, "result" => %{"operation_id" => 42, status: "acknowledged"} }}}}
+  """
+  @spec get_collection_aliases(String.t()) :: {:ok, map()} | {:error, any()}
+  def get_collection_aliases(collection_name) do
+    path = "/#{collection_name}/aliases"
+    get(path)
+  end
+
+  # * Private helpers
+  defp timeout_query(timeout), do: if(timeout, do: "?timeout=#{timeout}", else: "")
+  defp add_query_param(path, _, nil), do: path
+  defp add_query_param(path, key, value), do: path <> "&#{key}=#{value}"
 end
