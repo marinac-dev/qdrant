@@ -181,8 +181,20 @@ defmodule Qdrant.Api.Http.Collections do
     patch(path, body)
   end
 
-  @spec create_collection(String.t(), map(), integer()) :: {:error, any} | {:ok, Tesla.Env.t()}
-  def create_collection(name, body, timeout) do
-    put("/#{name}?timeout=#{timeout}", body)
+  @doc """
+  Drop collection and all associated data [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/delete_collection)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to delete
+
+  ## Query parameters
+
+  - timeout *optional* : Wait for operation commit timeout in seconds. If timeout is reached - request will return with service error.
+  """
+  @spec delete_collection(String.t(), integer() | nil) :: {:ok, map()} | {:error, any()}
+  def delete_collection(collection_name, timeout \\ nil) do
+    path = "/#{collection_name}" <> if timeout, do: "?timeout=#{timeout}", else: ""
+    delete(path)
   end
 end
