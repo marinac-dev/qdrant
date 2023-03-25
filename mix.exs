@@ -26,7 +26,8 @@ defmodule Qdrant.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.29.3"},
-      {:tesla, "~> 1.5"}
+      {:tesla, "~> 1.5"},
+      {:jason, "~> 1.4"}
     ]
   end
 
