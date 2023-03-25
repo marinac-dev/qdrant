@@ -10,8 +10,14 @@ defmodule Qdrant.MixProject do
       deps: deps(),
       name: "Qdrant",
       package: package(),
-      description: description(),
-      source_url: "https://github.com/marinac-dev/qdrant"
+      description: "Qdrant Elixir client",
+      authors: ["Nikola (marinac-dev)"],
+      source_url: "https://github.com/marinac-dev/qdrant",
+      docs: [
+        main: "readme",
+        source_ref: "master",
+        extras: ["README.md", "CHANGELOG.md", "LICENSE"]
+      ]
     ]
   end
 
@@ -30,10 +36,6 @@ defmodule Qdrant.MixProject do
       {:jason, "~> 1.4"},
       {:mox, "~> 1.0"}
     ]
-  end
-
-  defp description do
-    "Qdrant Elixir client"
   end
 
   defp package() do
