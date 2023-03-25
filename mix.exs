@@ -24,7 +24,9 @@ defmodule Qdrant.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    []
+    [
+      {:ex_doc, "~> 0.29.3"}
+    ]
   end
 
   defp description do
@@ -34,7 +36,7 @@ defmodule Qdrant.MixProject do
   defp package() do
     [
       name: "qdrant",
-      files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG* src),
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG* lib),
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => "https://github.com/marinac-dev/qdrant"}
     ]
