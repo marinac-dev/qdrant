@@ -89,6 +89,7 @@ defmodule Qdrant.Api.Http.Collections do
   - `init_from` *optional*: `null` or `string` Default: `null`. \n  Specify other collection to copy data from.
 
   - `quantization_config` *optional*: Default: `null`. \m Quantization parameters. If none - quantization is disabled.
+
   ## Request sample
 
   ```json
@@ -129,9 +130,55 @@ defmodule Qdrant.Api.Http.Collections do
   ```
 
   """
-  @spec create_collection(String.t(), map()) :: {:ok, map()} | {:error, any()}
-  def create_collection(name, body) do
-    put("/#{name}", body)
+  @spec create_collection(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
+  def create_collection(name, body, timeout \\ nil) do
+    path = "/#{name}" <> if timeout, do: "?timeout=#{timeout}", else: ""
+    put(path, body)
+  end
+
+  @doc """
+  Update collection parameters [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/update_collection)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to update
+
+  ## Query parameters
+
+  - timeout *optional* : Wait for operation commit timeout in seconds. If timeout is reached - request will return with service error.
+
+  ## Request body schema
+
+  - `optimizers_config` *optional*: Custom params for Optimizers. If none - values from service configuration file are used. This operation is blocking, it will only proceed ones all current optimizations are complete
+
+  - `params` *optional*: Collection base params. If none - values from service configuration file are used.
+
+  ## Request sample
+
+  ```json
+  {
+    "optimizers_config": {
+      "deleted_threshold": 0,
+      "vacuum_min_vector_number": 0,
+      "default_segment_number": 0,
+      "max_segment_size": 0,
+      "memmap_threshold": 0,
+      "indexing_threshold": 0,
+      "flush_interval_sec": 0,
+      "max_optimization_threads": 0
+    },
+    "params": {
+      "replication_factor": 1,
+      "write_consistency_factor": 1
+    }
+  }
+  ```
+  """
+
+  @spec update_collection(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
+  def update_collection(collection_name, body, timeout \\ nil) do
+    path = "/#{collection_name}" <> if timeout, do: "?timeout=#{timeout}", else: ""
+    patch(path, body)
   end
 
   @spec create_collection(String.t(), map(), integer()) :: {:error, any} | {:ok, Tesla.Env.t()}
