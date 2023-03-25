@@ -11,21 +11,21 @@ defmodule Qdrant.Api.Http.Client do
   defmacro __using__(_opts) do
     quote do
       use Tesla, docs: false
-      plug Tesla.Middleware.BaseUrl, get_url()
+      plug Tesla.Middleware.BaseUrl, base_url()
       plug Tesla.Middleware.JSON
 
-      defp get_url() do
+      defp base_url do
         case Application.get_env(:qdrant, :database_url) do
           nil -> raise "Qdrant database url is not set"
           url -> url <> api_path()
         end
       end
 
-      import(Qdrant.Api.Http.Client, only: [url: 1])
+      import(Qdrant.Api.Http.Client, only: [scope: 1])
     end
   end
 
-  defmacro url(path) do
+  defmacro scope(path) do
     quote do
       def api_path, do: unquote(path)
     end
