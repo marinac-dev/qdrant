@@ -7,6 +7,9 @@ defmodule Qdrant.Api.Http.Collections do
 
   use Qdrant.Api.Http.Client
 
+  @doc false
+  scope "/collections"
+
   @type vector_params :: %{size: integer(), distance: String.t()}
 
   # * Update aliases of the collections
@@ -38,8 +41,15 @@ defmodule Qdrant.Api.Http.Collections do
           | %{abort_transfer: shadred_operation_params}
           | %{drop_replica: drop_replica_params}
 
-  @doc false
-  scope "/collections"
+  # * Points
+  @type vector :: [[float()]]
+  @type points_batch :: %{
+          ids: [non_neg_integer() | String.t()],
+          vectors: vector,
+          payloads: [map()]
+        }
+  @type points_list :: [points_batch]
+  @type upsert_body :: points_batch() | points_list()
 
   @doc """
   Get list name of all existing collections. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/get_collection)
@@ -398,6 +408,39 @@ defmodule Qdrant.Api.Http.Collections do
   def get_collection_aliases(collection_name) do
     path = "/#{collection_name}/aliases"
     get(path)
+  end
+
+  # # # # # # #
+  # * Points  #
+  # # # # # # #
+
+  @doc """
+  Perform insert + updates on points. If point with given ID already exists - it will be overwritten. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/points/operation/upsert_points)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to update from
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `batch` **required** : List of points to insert or update
+  OR
+  - `points` **required** : Point to insert or update
+  """
+  @spec upsert_points(String.t(), upsert_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
+  def upsert_points(collection_name, body, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/points?"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    post(path, body)
   end
 
   # * Private helpers
