@@ -9,7 +9,6 @@ defmodule Qdrant do
     import Supervisor.Spec, warn: false
 
     children = [
-      {Qdrant.Tokenizer, []}
     ]
 
     opts = [strategy: :one_for_one, name: Qdrant.Supervisor]
