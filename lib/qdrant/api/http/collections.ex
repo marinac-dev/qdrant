@@ -42,13 +42,12 @@ defmodule Qdrant.Api.Http.Collections do
           | %{drop_replica: drop_replica_params}
 
   # * Points
-  @type vector :: [[float()]]
-  @type points_batch :: %{
-          ids: [non_neg_integer() | String.t()],
-          vectors: vector,
-          payloads: [map()]
-        }
-  @type points_list :: [points_batch]
+  @type vector :: list(float())
+  @type vectors :: list(vector())
+  @type points_batch :: %{batch: %{ids: list(integer() | String.t()), vectors: vectors(), payloads: list(map())}}
+
+  @type point :: %{id: integer() | String.t(), vector: vector(), payload: map()}
+  @type points_list :: list(point())
   @type upsert_body :: points_batch() | points_list()
 
   @doc """
