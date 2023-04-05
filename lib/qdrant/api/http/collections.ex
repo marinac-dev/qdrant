@@ -42,13 +42,47 @@ defmodule Qdrant.Api.Http.Collections do
           | %{drop_replica: drop_replica_params}
 
   # * Points
-  @type vector :: list(float())
+  @type vector :: list(float()) | %{name: String.t(), vector: list(float())}
   @type vectors :: list(vector())
   @type points_batch :: %{batch: %{ids: list(integer() | String.t()), vectors: vectors(), payloads: list(map())}}
 
   @type point :: %{id: integer() | String.t(), vector: vector(), payload: map()}
   @type points_list :: list(point())
   @type upsert_body :: points_batch() | points_list()
+
+  @type delete_body :: list(integer() | String.t())
+
+  @type field_condition :: %{
+          key: String.t(),
+          match: %{value: String.t()} | %{text: String.t()} | %{any: String.t()},
+          range: %{gte: float(), lte: float(), gt: float(), lt: float()},
+          geo_bounding_box: %{
+            top_left: %{lat: float(), lon: float()},
+            bottom_right: %{lat: float(), lon: float()}
+          },
+          geo_radius: %{
+            center: %{lat: float(), lon: float()},
+            radius: float()
+          },
+          values_count: %{
+            lt: integer(),
+            lte: integer(),
+            gt: integer(),
+            gte: integer()
+          }
+        }
+
+  @type filter_type :: list(field_condition()) | %{is_empty: map()} | %{has_id: list(integer() | String.t())}
+  @type search_body :: %{
+          vector: vector(),
+          filter: %{must: filter_type(), should: filter_type(), must_not: filter_type()} | nil,
+          params: %{
+            hnsw_ef: integer() | nil,
+            exact: boolean(),
+            quantization: %{ignore: boolean() | false, rescore: boolean() | false} | nil
+          },
+          limit: integer()
+        }
 
   @doc """
   Get list name of all existing collections. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/get_collection)
@@ -438,6 +472,72 @@ defmodule Qdrant.Api.Http.Collections do
       "/#{collection_name}/points?"
       |> add_query_param("wait", wait)
       |> add_query_param("ordering", ordering)
+
+    post(path, body)
+  end
+
+  @doc """
+  Delete points
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to update from
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `points` **required** : List of points to delete
+  """
+  @spec delete_points(String.t(), delete_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
+  def delete_points(collection_name, body, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/points/delete?"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    delete(path, body)
+  end
+
+  @doc """
+  Retrieve closest points based on vector similarity and given filtering conditions
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `vector` **required** : Vector to search for
+
+  - `filter` *optional* : Filter to apply to the search results. Look only for points which satisfies this conditions
+
+  - `params` *optional* : Additional search parameters
+
+  - `limit` **required** : Maximum number of points to return
+
+  - `offset` *optional* : Offset of the first result to return. May be used to paginate results. Note: large offset values may cause performance issues.
+
+  - `with_payload` *optional* : Select which payload to return with the response. Default: None
+
+  - `with_vector` *optional* : Whether to return the point vector with the result?
+
+  - `score_threshold` *optional* : Define a minimal score threshold for the result. If defined, less similar results will not be returned. Score of the returned result might be higher or smaller than the threshold depending on the Distance function used. E.g. for cosine similarity only higher scores will be returned.
+  """
+
+  @spec search_points(String.t(), search_body(), integer() | nil) :: {:ok, map()} | {:error, any()}
+  def search_points(collection_name, body, consistency \\ nil) do
+    path =
+      "/#{collection_name}/points/search"
+      |> add_query_param("consistency", consistency)
 
     post(path, body)
   end
