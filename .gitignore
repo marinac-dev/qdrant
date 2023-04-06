@@ -35,3 +35,6 @@ qdrant-*.tar
 config
 # Ignore qdrant_storage folder
 qdrant_storage/
+
+# Ignore .changelog folder
+.chglog/
