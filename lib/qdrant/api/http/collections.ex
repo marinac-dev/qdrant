@@ -10,6 +10,9 @@ defmodule Qdrant.Api.Http.Collections do
   @doc false
   scope "/collections"
 
+  # TODO: Rewrite typespecs to have primary types and complex types
+  # TODO: Fix typespecs for some functions
+  @type extended_point_id :: list(integer() | String.t())
   @type vector_params :: %{size: integer(), distance: String.t()}
 
   # * Update aliases of the collections
@@ -72,20 +75,57 @@ defmodule Qdrant.Api.Http.Collections do
           }
         }
 
-  @type filter_type :: list(field_condition()) | %{is_empty: map()} | %{has_id: list(integer() | String.t())}
+  @type filter_type :: list(field_condition()) | %{is_empty: map()} | %{has_id: extended_point_id()}
+  @type search_params :: %{
+          hnsw_ef: integer() | nil,
+          exact: boolean(),
+          quantization: %{ignore: boolean() | false, rescore: boolean() | false} | nil
+        }
   @type search_body :: %{
           vector: vector(),
           filter: %{must: filter_type(), should: filter_type(), must_not: filter_type()} | nil,
-          params: %{
-            hnsw_ef: integer() | nil,
-            exact: boolean(),
-            quantization: %{ignore: boolean() | false, rescore: boolean() | false} | nil
-          },
+          params: search_params(),
           limit: integer()
         }
 
-  @type set_payload_body :: %{payload: map(), points: list(integer() | String.t()), filter: filter_type()}
-  @type delete_payload_body :: %{keys: list(String.t()), points: list(integer() | String.t()), filter: filter_type()}
+  @type set_payload_body :: %{payload: map(), points: extended_point_id(), filter: filter_type()}
+  @type delete_payload_body :: %{keys: list(String.t()), points: extended_point_id(), filter: filter_type()}
+
+  @type consistency :: non_neg_integer() | :majority | :quorum | :all
+  @type with_payload_interface :: boolean() | list(String.t()) | %{include: String.t(), exclude: String.t()}
+  @type scroll_body :: %{
+          offset: non_neg_integer() | String.t(),
+          limit: non_neg_integer(),
+          filter: filter_type(),
+          with_payload: with_payload_interface(),
+          with_vector: boolean() | list(String.t())
+        }
+
+  @type search_request :: %{
+          vector: vector(),
+          filter: filter_type(),
+          params: search_params(),
+          limit: non_neg_integer(),
+          offset: non_neg_integer(),
+          with_payload: with_payload_interface(),
+          with_vector: boolean() | list(String.t()),
+          score_threshold: integer() | nil
+        }
+  @type search_batch_body :: list(search_request())
+  @type recommend_body :: %{
+          positive: extended_point_id(),
+          negative: extended_point_id(),
+          filter: filter_type(),
+          params: search_params(),
+          limit: non_neg_integer(),
+          offset: non_neg_integer(),
+          with_payload: with_payload_interface(),
+          with_vector: boolean() | list(String.t()),
+          score_threshold: non_neg_integer() | nil,
+          using: String.t(),
+          lookup_from: %{collection: String.t(), vector: String.t()} | nil
+        }
+  @type recommend_batch_body :: list(recommend_body())
 
   @doc """
   Get list name of all existing collections. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/get_collection)
@@ -630,6 +670,38 @@ defmodule Qdrant.Api.Http.Collections do
   end
 
   @doc """
+  Scroll request - paginate over all points which matches given filtering condition
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to retrieve from
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `offset` *optional* : Start ID to read points from.
+
+  - `limit` *optional* : Page size. Default: 10
+
+  - `filter` *optional* : Look only for points which satisfies this conditions. If not provided - all points.
+
+  - `with_payload` *optional* : Select which payload to return with the response. Default: All
+
+  - `with_vector` *optional* : Options for specifying which vector to include
+  """
+  @spec scroll_points(String.t(), scroll_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def scroll_points(collection_name, body, consistency \\ nil) do
+    path =
+      "/#{collection_name}/points/scroll?"
+      |> add_query_param("consistency", consistency)
+
+    post(path, body)
+  end
+
+  @doc """
   Retrieve closest points based on vector similarity and given filtering conditions
 
   ## Path parameters
@@ -663,6 +735,99 @@ defmodule Qdrant.Api.Http.Collections do
   def search_points(collection_name, body, consistency \\ nil) do
     path =
       "/#{collection_name}/points/search"
+      |> add_query_param("consistency", consistency)
+
+    post(path, body)
+  end
+
+  @doc """
+  Retrieve by batch the closest points based on vector similarity and given filtering conditions
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `searches` **required** : List of searches to perform
+  """
+  @spec search_points_batch(String.t(), search_batch_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def search_points_batch(collection_name, body, consistency \\ nil) do
+    path =
+      "/#{collection_name}/points/search/batch"
+      |> add_query_param("consistency", consistency)
+
+    post(path, body)
+  end
+
+  @doc """
+  Look for the points which are closer to stored positive examples and at the same time further to negative examples.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `positive` **required** : Look for vectors closest to those
+
+  - `negative` **required** : Look for vectors further from those | Try to avoid vectors like this
+
+  - `filter` *optional* : Look only for points which satisfies this conditions
+
+  - `params` *optional* : Additional search parameters
+
+  - `limit` **required** : Maximum number of points to return
+
+  - `offset` *optional* : Offset of the first result to return. May be used to paginate results. Note: large offset values may cause performance issues.
+
+  - `with_payload` *optional* : Select which payload to return with the response. Default: None
+
+  - `with_vector` *optional* : Whether to return the point vector with the result?
+
+  - `score_threshold` *optional* : Define a minimal score threshold for the result. If defined, less similar results will not be returned. Score of the returned result might be higher or smaller than the threshold depending on the Distance function used. E.g. for cosine similarity only higher scores will be returned.
+
+  - `using` *optional* : Define which vector to use for recommendation, if not specified - try to use default vector
+
+  - `lookup_from` *optional* : The location used to lookup vectors. If not specified - use current collection. Note: the other collection should have the same vector size as the current collection
+  """
+  @spec recommend_points(String.t(), recommend_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def recommend_points(collection_name, body, consistency \\ nil) do
+    path =
+      "/#{collection_name}/points/recommend"
+      |> add_query_param("consistency", consistency)
+
+    post(path, body)
+  end
+
+  @doc """
+  Request points based on positive and negative examples.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `searches` **required** : List of searches to perform
+  """
+  @spec recommend_points_batch(String.t(), recommend_batch_body(), consistency() | nil) ::
+          {:ok, map()} | {:error, any()}
+  def recommend_points_batch(collection_name, body, consistency \\ nil) do
+    path =
+      "/#{collection_name}/points/recommend/batch"
       |> add_query_param("consistency", consistency)
 
     post(path, body)
