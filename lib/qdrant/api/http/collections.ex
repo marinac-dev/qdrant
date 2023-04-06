@@ -84,6 +84,9 @@ defmodule Qdrant.Api.Http.Collections do
           limit: integer()
         }
 
+  @type set_payload_body :: %{payload: map(), points: list(integer() | String.t()), filter: filter_type()}
+  @type delete_payload_body :: %{keys: list(String.t()), points: list(integer() | String.t()), filter: filter_type()}
+
   @doc """
   Get list name of all existing collections. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/get_collection)
 
@@ -504,6 +507,129 @@ defmodule Qdrant.Api.Http.Collections do
   end
 
   @doc """
+  Set payload values for points
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to set from
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `payload` **required** : Payload to set
+
+  - `points` **required** : Assigns payload to each point in this list
+
+  - `filter` *optional* : Assigns payload to each point that satisfy this filter condition
+  """
+  @spec set_payload(String.t(), set_payload_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
+  def set_payload(collection_name, body, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/points/payload?"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    post(path, body)
+  end
+
+  @doc """
+  Replace full payload of points with new one
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to set from
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `payload` **required** : Payload to set
+
+  - `points` **required** : Assigns payload to each point in this list
+
+  - `filter` *optional* : Assigns payload to each point that satisfy this filter condition
+  """
+  @spec overwrite_payload(String.t(), set_payload_body(), boolean() | nil, ordering() | nil) ::
+          {:ok, map()} | {:error, any()}
+  def overwrite_payload(collection_name, body, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/points/payload?"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    put(path, body)
+  end
+
+  @doc """
+  Delete specified key payload for points
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to delete from
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `keys` **required** : List of payload keys to remove from payload
+
+  - `points` **required** : Deletes values from each point in this list
+
+  - `filter` *optional* : Deletes values from points that satisfy this filter condition
+  """
+  @spec delete_payload(String.t(), delete_payload_body(), boolean() | nil, ordering() | nil) ::
+          {:ok, map()} | {:error, any()}
+  def delete_payload(collection_name, body, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/points/payload/delete?"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    post(path, body)
+  end
+
+  @doc """
+  Remove all payload for specified points
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to clear payload from
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `points` **required** : List of points to clear payload from
+  """
+  @spec clear_payload(String.t(), list(integer() | String.t()), boolean() | nil, ordering() | nil) ::
+          {:ok, map()} | {:error, any()}
+  def clear_payload(collection_name, body, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/points/payload/clear?"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    post(path, body)
+  end
+
+  @doc """
   Retrieve closest points based on vector similarity and given filtering conditions
 
   ## Path parameters
@@ -539,6 +665,25 @@ defmodule Qdrant.Api.Http.Collections do
       "/#{collection_name}/points/search"
       |> add_query_param("consistency", consistency)
 
+    post(path, body)
+  end
+
+  @doc """
+  Count points which matches given filtering condition
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to count in
+
+  ## Request body schema
+
+  - `filter` *optional* : Filter to apply to the search results. Look only for points which satisfies this conditions
+
+  - `exact` *optional* : If true, count exact number of points. If false, count approximate number of points faster. Approximate count might be unreliable during the indexing process. Default: true
+  """
+  @spec count_points(String.t(), %{filter: filter_type(), exact: boolean()}) :: {:ok, map()} | {:error, any()}
+  def count_points(collection_name, body) do
+    path = "/#{collection_name}/points/count"
     post(path, body)
   end
 
