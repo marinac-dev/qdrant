@@ -1,4 +1,18 @@
 
+<a name="v0.0.5"></a>
+## [v0.0.5](https://github.com/marinac-dev/qdrant/compare/v0.0.4...v0.0.5)
+
+> 2023-04-07
+
+### Chores
+
+* Bump version
+
+### Features
+
+* **qdrant:** Add Service module
+
+
 <a name="v0.0.4"></a>
 ## [v0.0.4](https://github.com/marinac-dev/qdrant/compare/v0.0.3...v0.0.4)
 
@@ -9,13 +23,15 @@
 * **qdrant:** Remove missing application
 * **type:** Fix upsert_body typespec
 
-### Chore
+### Chores
 
+* Update CHANGELOG and gitignore
 * Bump version
 
 ### Features
 
 * **api-http:** Add upsert_points fn
+* **qdrant:** Add scroll_points, search_points_batch, recommend_points, and recommend_points_batch FN-s
 * **qdrant:** Add set_payload, overwrite_payload, delete_payload, clear_payload FN-s
 * **qdrant:** Add delete_points and search_points fn
 * **qdrant:** Add qdrant applicaiton
@@ -26,7 +42,7 @@
 
 > 2023-04-07
 
-### Chore
+### Chores
 
 * Changelog update
 
@@ -50,7 +66,7 @@
 
 > 2023-04-07
 
-### Chore
+### Chores
 
 * Decrese project version
 * Update readme
