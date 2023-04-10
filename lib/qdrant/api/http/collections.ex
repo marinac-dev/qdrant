@@ -49,8 +49,8 @@ defmodule Qdrant.Api.Http.Collections do
   @type vectors :: list(vector())
   @type points_batch :: %{batch: %{ids: list(integer() | String.t()), vectors: vectors(), payloads: list(map())}}
 
-  @type point :: %{id: integer() | String.t(), vector: vector(), payload: map()}
-  @type points_list :: list(point())
+  @type point :: %{id: non_neg_integer() | String.t(), vector: list(float()), payload: map()}
+  @type points_list :: %{points: list(point())}
   @type upsert_body :: points_batch() | points_list()
 
   @type delete_body :: list(integer() | String.t())
@@ -516,7 +516,7 @@ defmodule Qdrant.Api.Http.Collections do
       |> add_query_param("wait", wait)
       |> add_query_param("ordering", ordering)
 
-    post(path, body)
+    put(path, body)
   end
 
   @doc """
