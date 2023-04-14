@@ -28,7 +28,7 @@ defmodule Qdrant.Api.Http.Client do
       defp base_url do
         case Application.get_env(:qdrant, :database_url) do
           nil -> raise "Qdrant database url is not set"
-          url -> url <> api_path()
+          base_url -> base_url <> api_path()
         end
       end
 
