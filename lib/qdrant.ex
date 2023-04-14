@@ -3,15 +3,20 @@ defmodule Qdrant do
   Documentation for Qdrant.
   """
 
-  use Application
+  use Qdrant.Api.Wrapper
 
-  def start(_type, _args) do
-    import Supervisor.Spec, warn: false
+  @doc """
 
-    children = [
-    ]
+  """
+  def create_collection(collection_name, body, timeout \\ nil) do
+    api_call("Collections", :create_collection, [collection_name, body, timeout])
+  end
 
-    opts = [strategy: :one_for_one, name: Qdrant.Supervisor]
-    Supervisor.start_link(children, opts)
+  def list_collections() do
+    api_call("Collections", :list_collections, [])
+  end
+
+  def collection_info(collection_name) do
+    api_call("Collections", :collection_info, [collection_name])
   end
 end
