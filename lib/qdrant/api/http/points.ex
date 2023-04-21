@@ -9,12 +9,10 @@ defmodule Qdrant.Api.Http.Points do
   """
 
   use Qdrant.Api.Http.Client
+  use Qdrant.Utils.Types
 
   @doc false
   scope "/collections"
-
-  @type extended_point_id :: list(integer() | String.t())
-  @type ordering :: :weak | :medium | :strong
 
   @type vector :: list(float()) | %{name: String.t(), vector: list(float())}
   @type vectors :: list(vector())

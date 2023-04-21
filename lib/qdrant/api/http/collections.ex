@@ -5,15 +5,13 @@ defmodule Qdrant.Api.Http.Collections do
   Collections are searchable collections of points.
   """
 
+  use Qdrant.Utils.Types
   use Qdrant.Api.Http.Client
 
   @doc false
   scope "/collections"
 
-  # TODO: Rewrite typespecs to have primitive and derived types
   # TODO: Fix typespecs for some functions
-  @type extended_point_id :: list(integer() | String.t())
-  @type vector_params :: %{size: integer(), distance: String.t()}
 
   # * Update aliases of the collections
   @type delete_alias :: %{alias_name: String.t()}
@@ -22,7 +20,6 @@ defmodule Qdrant.Api.Http.Collections do
   @type alias_actions_list :: %{actions: [delete_alias | create_alias | rename_alias]}
 
   # * Create index for the collection field
-  @type ordering :: :weak | :medium | :strong
   @type index_body_type :: :keyword | :integer | :float | :geo | :text
   @type tokenizer_type :: :prefix | :whitespace | :word
   @type field_schema :: %{
