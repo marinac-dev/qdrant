@@ -48,3 +48,18 @@ Qdrant.upsert_points(collection_name, %{batch: %{ids: [1,2], vectors: [vector1, 
 # Or one by one
 Qdrant.upsert_point(collection_name, %{points: [%{id: 1, vector: vector1}, %{id: 2, vector: vector2}]})
 ```
+
+## Contributing
+
+- Fork the repository
+- Create a branch for your changes
+- Make your changes
+- Run `mix format` to format your code
+
+## Change Log
+
+Generate change log with `git-chglog -o CHANGELOG.md`
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
