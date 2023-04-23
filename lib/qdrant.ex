@@ -14,7 +14,7 @@ defmodule Qdrant do
   %{
     vectors: %{
       size: 42,
-      distance: "Cosine",
+      distance: "Cosine"
     }
   }
   ```

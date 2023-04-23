@@ -21,8 +21,11 @@ end
 
 ```elixir
 config :qdrant,
+  port: 6333,
   interface: "rest", # gRPC not yet supported
-  database_url: System.get_env("QDRANT_DATABASE_URL")
+  database_url: System.get_env("QDRANT_DATABASE_URL"),
+  # If you are using cloud version of Qdrant, add API key
+  api_key: System.get_env("QDRANT_API_KEY")
 ```
 
 ## Usage

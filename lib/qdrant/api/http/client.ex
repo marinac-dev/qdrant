@@ -22,13 +22,30 @@ defmodule Qdrant.Api.Http.Client do
   defmacro __using__(_opts) do
     quote do
       use Tesla, docs: false
-      plug Tesla.Middleware.BaseUrl, base_url()
       plug Tesla.Middleware.JSON
+      plug Tesla.Middleware.BaseUrl, base_url()
+      plug Tesla.Middleware.Headers, [{"api-key", api_key()}]
 
-      defp base_url do
+      defp base_url, do: "#{api_url()}:#{port()}#{api_path()}"
+
+      defp api_url do
         case Application.get_env(:qdrant, :database_url) do
           nil -> raise "Qdrant database url is not set"
-          base_url -> base_url <> api_path()
+          base_url -> base_url
+        end
+      end
+
+      defp port do
+        case Application.get_env(:qdrant, :port) do
+          nil -> raise "Qdrant database port is not set"
+          port -> port
+        end
+      end
+
+      defp api_key do
+        case Application.get_env(:qdrant, :api_key) do
+          nil -> raise "Qdrant api key is not set"
+          api_key -> api_key
         end
       end
 
