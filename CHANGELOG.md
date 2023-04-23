@@ -1,4 +1,34 @@
 
+<a name="v0.0.6"></a>
+## [v0.0.6](https://github.com/marinac-dev/qdrant/compare/v0.0.5...v0.0.6)
+
+> 2023-04-23
+
+### Bug Fixes
+
+* **qdrant-points:** Fix upsert_body typespec and use PUT instead of POST
+
+### Chores
+
+* Bump version
+* Update README.md
+* Update LICENSE
+* Update CHANGELOG
+
+### Features
+
+* **qdrant:** Add API key for Cloud and make port configurable.
+* **qdrant:** Update Qdrant module
+* **qdrant:** Decouple Points from Collections into it's own module
+* **qdrant:** WIP Qdrant module
+* **qdrant:** Add Api Wrapper module
+* **qdrant-types:** Extract typespec into module
+
+### Tidbit
+
+* Update variable name
+
+
 <a name="v0.0.5"></a>
 ## [v0.0.5](https://github.com/marinac-dev/qdrant/compare/v0.0.4...v0.0.5)
 
