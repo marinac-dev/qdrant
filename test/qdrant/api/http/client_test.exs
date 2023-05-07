@@ -24,4 +24,5 @@ defmodule Qdrant.Api.Http.ClientTest do
       assert_raise RuntimeError, "Qdrant database url is not set", &base_url/0
     end
   end
+  
 end
