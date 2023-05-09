@@ -22,8 +22,9 @@ defmodule Qdrant.Api.Http.Points do
   @type points_list :: %{points: list(point())}
   @type upsert_body :: points_batch() | points_list()
 
-  @type delete_body :: %{points: list(integer() | String.t())}
-
+  @type delete_body ::
+          %{points: list(integer() | String.t())}
+          | %{filter: %{must: filter_type(), should: filter_type(), must_not: filter_type()}}
   @type field_condition :: %{
           key: String.t(),
           match: %{value: String.t()} | %{text: String.t()} | %{any: String.t()},
