@@ -22,8 +22,9 @@ defmodule Qdrant.Api.Http.Points do
   @type points_list :: %{points: list(point())}
   @type upsert_body :: points_batch() | points_list()
 
-  @type delete_body :: list(integer() | String.t())
-
+  @type delete_body ::
+          %{points: list(integer() | String.t())}
+          | %{filter: %{must: filter_type(), should: filter_type(), must_not: filter_type()}}
   @type field_condition :: %{
           key: String.t(),
           match: %{value: String.t()} | %{text: String.t()} | %{any: String.t()},
@@ -149,7 +150,7 @@ defmodule Qdrant.Api.Http.Points do
       |> add_query_param("wait", wait)
       |> add_query_param("ordering", ordering)
 
-    delete(path, body)
+    post(path, body)
   end
 
   @doc """
