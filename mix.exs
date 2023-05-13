@@ -42,8 +42,9 @@ defmodule Qdrant.MixProject do
     [
       name: "qdrant",
       files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG* lib),
-      licenses: ["Apache-2.0"],
-      links: %{"GitHub" => "https://github.com/marinac-dev/qdrant"}
+      links: %{"GitHub" => "https://github.com/marinac-dev/qdrant"},
+      licenses: ["MIT"],
+      maintainers: ["Nikola (marinac-dev)"]
     ]
   end
 end
