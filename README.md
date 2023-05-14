@@ -10,7 +10,7 @@ by adding `qdrant` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:qdrant, "~> 0.5.0"}
+    {:qdrant, "~> 0.7.0"}
     # Or use the latest version from GitHub | Recommended during development phase
     {:qdrant, git: "git@github.com:marinac-dev/qdrant.git"},
   ]
@@ -47,6 +47,10 @@ vector2 = OpenAi.embed_text("This is OpenAI")
 Qdrant.upsert_points(collection_name, %{batch: %{ids: [1,2], vectors: [vector1, vector2]}})
 # Or one by one
 Qdrant.upsert_point(collection_name, %{points: [%{id: 1, vector: vector1}, %{id: 2, vector: vector2}]})
+
+# Search for similar vectors
+vector3 = OpenAi.embed_text("Hello world!")
+Qdrant.search(collection_name, %{vector: vector3, limit: 3})
 ```
 
 ## Contributing
