@@ -14,17 +14,24 @@ defmodule Qdrant.Api.Http.Points do
   @doc false
   scope "/collections"
 
-  @type vector :: list(float()) | %{name: String.t(), vector: list(float())}
   @type vectors :: list(vector())
-  @type points_batch :: %{batch: %{ids: list(integer() | String.t()), vectors: vectors(), payloads: list(map())}}
+  @type points_batch :: %{
+          batch: %{ids: list(non_neg_integer() | String.t()), vectors: vectors(), payloads: list(map())}
+        }
 
-  @type point :: %{id: non_neg_integer() | String.t(), vector: list(float()), payload: map()}
+  @type get_points_body :: %{
+          ids: list(non_neg_integer() | String.t()),
+          with_payload: with_payload_interface(),
+          with_vector: boolean() | list(String.t())
+        }
+
   @type points_list :: %{points: list(point())}
   @type upsert_body :: points_batch() | points_list()
 
   @type delete_body ::
-          %{points: list(integer() | String.t())}
+          %{points: list(non_neg_integer() | String.t())}
           | %{filter: %{must: filter_type(), should: filter_type(), must_not: filter_type()}}
+
   @type field_condition :: %{
           key: String.t(),
           match: %{value: String.t()} | %{text: String.t()} | %{any: String.t()},
@@ -38,31 +45,35 @@ defmodule Qdrant.Api.Http.Points do
             radius: float()
           },
           values_count: %{
-            lt: integer(),
-            lte: integer(),
-            gt: integer(),
-            gte: integer()
+            lt: non_neg_integer(),
+            lte: non_neg_integer(),
+            gt: non_neg_integer(),
+            gte: non_neg_integer()
           }
         }
 
   @type filter_type :: list(field_condition()) | %{is_empty: map()} | %{has_id: extended_point_id()}
+
   @type search_params :: %{
           hnsw_ef: integer() | nil,
           exact: boolean(),
           quantization: %{ignore: boolean() | false, rescore: boolean() | false} | nil
         }
+
   @type search_body :: %{
           vector: vector(),
           filter: %{must: filter_type(), should: filter_type(), must_not: filter_type()} | nil,
           params: search_params(),
-          limit: integer()
+          limit: integer(),
+          offset: non_neg_integer(),
+          with_payload: with_payload_interface(),
+          with_vector: boolean() | list(String.t()),
+          score_threshold: integer() | nil
         }
 
   @type set_payload_body :: %{payload: map(), points: extended_point_id(), filter: filter_type()}
   @type delete_payload_body :: %{keys: list(String.t()), points: extended_point_id(), filter: filter_type()}
 
-  @type consistency :: non_neg_integer() | :majority | :quorum | :all
-  @type with_payload_interface :: boolean() | list(String.t()) | %{include: String.t(), exclude: String.t()}
   @type scroll_body :: %{
           offset: non_neg_integer() | String.t(),
           limit: non_neg_integer(),
@@ -81,7 +92,9 @@ defmodule Qdrant.Api.Http.Points do
           with_vector: boolean() | list(String.t()),
           score_threshold: integer() | nil
         }
+
   @type search_batch_body :: list(search_request())
+
   @type recommend_body :: %{
           positive: extended_point_id(),
           negative: extended_point_id(),
@@ -95,7 +108,57 @@ defmodule Qdrant.Api.Http.Points do
           using: String.t(),
           lookup_from: %{collection: String.t(), vector: String.t()} | nil
         }
+
   @type recommend_batch_body :: list(recommend_body())
+
+  @doc """
+  Retrieve full information of single point by id.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to update from
+
+  - id **required** : ID of the point to retrieve
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+  """
+  @spec get_point(String.t(), String.t() | non_neg_integer(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def get_point(collection_name, id, consistency \\ nil) do
+    path =
+      "/#{collection_name}/points/#{id}?"
+      |> add_query_param("consistency", consistency)
+
+    get(path)
+  end
+
+  @doc """
+  Retrieve multiple points by specified IDs.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to update from
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `ids` **required** : List of IDs to retrieve
+  - `with_payload` *optional* : Select which payload to return with the response. Default: All
+  - `with_vector` *optional* : Options for specifying which vector to include
+  """
+
+  @spec get_points(String.t(), get_points_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def get_points(collection_name, body, consistency \\ nil) do
+    path =
+      "/#{collection_name}/points?"
+      |> add_query_param("consistency", consistency)
+
+    post(path, body)
+  end
 
   @doc """
   Perform insert + updates on points. If point with given ID already exists - it will be overwritten. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/points/operation/upsert_points)

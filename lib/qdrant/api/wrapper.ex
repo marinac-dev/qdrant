@@ -5,7 +5,11 @@ defmodule Qdrant.Api.Wrapper do
         case Application.get_env(:qdrant, :interface) do
           "rest" -> Module.concat(["Qdrant", "Api", "Http", module])
           "grpc" -> Module.concat(["Qdrant", "Api", "Grpc", module])
-          _ -> raise "Invalid interface configuration for Qdrant"
+          _ -> raise """
+          Invalid interface configuration for Qdrant.
+          Use `rest` or `grpc` as interface.
+          Please check docs for more information.
+          """
         end
       end
 

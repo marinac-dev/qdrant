@@ -82,4 +82,65 @@ defmodule Qdrant do
   def upsert_point(collection_name, body, wait \\ false, ordering \\ nil) do
     api_call("Points", :upsert_points, [collection_name, body, wait, ordering])
   end
+
+  @doc """
+  Search for points in the given collection.
+  Retrieve closest points based on vector similarity and given filtering conditions.
+
+  Parameters:
+  * `collection_name` - name of the collection to search in
+  * `body` - search body
+  * `consistency` - Define read consistency guarantees for the operation
+
+  Body must be a map with the key `limit` and `vector`, example:
+
+  ```elixir
+  %{
+    vector: vector,
+    limit: 3,
+    with_payload: true
+  }
+  ```
+
+  Example:
+  ```elixir
+  body = %{
+    vector: vector,
+    limit: 3,
+    with_payload: true
+  }
+  Qdrant.search_points("collection_name", body)
+  ```
+  """
+  def search_points(collection_name, body, consistency \\ nil) do
+    api_call("Points", :search, [collection_name, body, consistency])
+  end
+
+  @doc """
+  Retrieve full information of single point by id.
+
+  Example:
+  ```elixir
+  Qdrant.get_point("collection_name", 1)
+  ```
+  """
+  def get_point(collection_name, point_id, consistency \\ nil) do
+    api_call("Points", :get_point, [collection_name, point_id, consistency])
+  end
+
+  @doc """
+  Retrieve multiple points by specified IDs
+
+  Example:
+  ```elixir
+  body = %{
+    ids: [1, 2, 3],
+    with_payload: true
+  }
+  Qdrant.get_points("collection_name", body)
+  ```
+  """
+  def get_points(collection_name, points_body, consistency \\ nil) do
+    api_call("Points", :get_points, [collection_name, points_body, consistency])
+  end
 end

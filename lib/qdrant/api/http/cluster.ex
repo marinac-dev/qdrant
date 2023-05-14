@@ -8,6 +8,22 @@ defmodule Qdrant.Api.Http.Cluster do
   @doc false
   scope "/cluster"
 
+  @type shard_params :: %{
+          shard_id: non_neg_integer(),
+          to_peer_id: non_neg_integer(),
+          from_peer_id: non_neg_integer()
+        }
+
+  @type move_shard :: %{move_shard: shard_params()}
+  @type replicate_shard :: %{replicate_shard: shard_params()}
+  @type abort_transfer :: %{abort_transfer: shard_params()}
+  @type drop_replica :: %{
+          shard_id: non_neg_integer(),
+          peer_id: non_neg_integer()
+        }
+
+  @type shard_operations :: move_shard() | replicate_shard() | abort_transfer() | drop_replica()
+
   @doc """
   Get information about the current state and composition of the cluster. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/cluster/operation/cluster_status)
 
@@ -36,7 +52,7 @@ defmodule Qdrant.Api.Http.Cluster do
 
   ## Example
 
-      iex> Qdrant.Api.Http.Cluster.recover_cluster()
+      iex> Qdrant.Api.Http.Cluster.recover_current_peer()
       {:ok, %Tesla.Env{status: 200,
         body: %{
             "result" => true,
@@ -47,8 +63,8 @@ defmodule Qdrant.Api.Http.Cluster do
       }
 
   """
-  @spec recover_cluster() :: {:ok, Tesla.Env.t()} | {:error, any()}
-  def recover_cluster() do
+  @spec recover_current_peer() :: {:ok, Tesla.Env.t()} | {:error, any()}
+  def recover_current_peer() do
     post("/recover", %{})
   end
 
@@ -88,5 +104,21 @@ defmodule Qdrant.Api.Http.Cluster do
   @spec collection_cluster_info(String.t()) :: {:ok, Tesla.Env.t()} | {:error, any()}
   def collection_cluster_info(collection_name) do
     get("/collection/#{collection_name}/cluster")
+  end
+
+  @doc """
+  Update collection cluster setup. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/cluster/operation/update_collection_cluster)
+
+  ## Parameters
+
+    * `collection_name` **required** - `string` collection name
+
+  ## Query Parameters
+
+  - `timeout` - Wait for operation commit timeout in seconds. If timeout is reached - request will return with service error.
+  """
+  @spec update_collection_cluster(String.t(), shard_operations()) :: {:ok, Tesla.Env.t()} | {:error, any()}
+  def update_collection_cluster(collection_name, body) do
+    post("/collection/#{collection_name}/cluster", body)
   end
 end

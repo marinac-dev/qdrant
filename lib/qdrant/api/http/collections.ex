@@ -11,7 +11,34 @@ defmodule Qdrant.Api.Http.Collections do
   @doc false
   scope "/collections"
 
-  # TODO: Fix typespecs for some functions
+  @type create_collection_body :: %{
+          vectors: %{
+            size: non_neg_integer(),
+            distance: String.t(),
+            hnsw_config: hnsw_config() | nil,
+            quantization_config: quantization_config() | nil
+          },
+          shard_number: non_neg_integer() | nil,
+          replication_factor: pos_integer(),
+          write_consistency_factor: non_neg_integer() | nil,
+          on_disk_payload: boolean() | nil,
+          hnsw_config: hnsw_config() | nil,
+          wal_config: %{
+            wal_capacity_mb: pos_integer() | nil,
+            wal_segments_ahead: pos_integer() | nil
+          },
+          optimizers_config: optimizers_config() | nil,
+          init_from: String.t() | nil,
+          quantization_config: quantization_config() | nil
+        }
+
+  @type update_collection_body :: %{
+          optimizers_config: optimizers_config(),
+          params: %{
+            replication_factor: pos_integer() | nil,
+            write_consistency_factor: pos_integer() | nil
+          }
+        }
 
   # * Update aliases of the collections
   @type delete_alias :: %{alias_name: String.t()}
@@ -23,14 +50,14 @@ defmodule Qdrant.Api.Http.Collections do
   @type index_body_type :: :keyword | :integer | :float | :geo | :text
   @type tokenizer_type :: :prefix | :whitespace | :word
   @type field_schema :: %{
-          type: index_body_type,
-          tokenizers: tokenizer_type,
-          min_token_len: integer(),
-          max_token_len: integer(),
+          type: index_body_type(),
+          tokenizers: tokenizer_type(),
+          min_token_len: non_neg_integer(),
+          max_token_len: non_neg_integer(),
           lowercase: boolean()
         }
 
-  @type body_schema :: %{field_name: String.t(), field_schema: field_schema}
+  @type field_index :: %{field_name: String.t(), field_schema: field_schema}
 
   # * Update collection cluster setup
   @type shadred_operation_params :: %{shard_id: integer(), from_peer_id: integer(), to_peer_id: integer()}
@@ -121,8 +148,8 @@ defmodule Qdrant.Api.Http.Collections do
 
   - `quantization_config` *optional*: Default: `null`. \m Quantization parameters. If none - quantization is disabled.
   """
-  # TODO: add type for body
-  @spec create_collection(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
+
+  @spec create_collection(String.t(), create_collection_body(), integer() | nil) :: {:ok, map()} | {:error, any()}
   def create_collection(name, body, timeout \\ nil) do
     path = "/#{name}" <> timeout_query(timeout)
     put(path, body)
@@ -145,8 +172,8 @@ defmodule Qdrant.Api.Http.Collections do
 
   - `params` *optional*: Collection base params. If none - values from service configuration file are used.
   """
-  # TODO: add type for body
-  @spec update_collection(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
+
+  @spec update_collection(String.t(), update_collection_body(), integer() | nil) :: {:ok, map()} | {:error, any()}
   def update_collection(collection_name, body, timeout \\ nil) do
     path = "/#{collection_name}" <> timeout_query(timeout)
     patch(path, body)
@@ -223,7 +250,7 @@ defmodule Qdrant.Api.Http.Collections do
       iex> Qdrant.create_field_index("collection_name", %{field_name: "field_name", field_schema: "field_schema"})
       {:ok, %{"status" => "ok", "time" => 0, "result" => %{"operation_id" => 42, status: "acknowledged"} }}}}
   """
-  @spec create_field_index(String.t(), body_schema(), boolean(), ordering() | nil) :: {:ok, map()} | {:error, any()}
+  @spec create_field_index(String.t(), field_index(), boolean(), ordering() | nil) :: {:ok, map()} | {:error, any()}
   def create_field_index(collection_name, %{field_name: _} = body, wait \\ false, ordering \\ nil) do
     path =
       "/#{collection_name}/index?"
@@ -340,9 +367,68 @@ defmodule Qdrant.Api.Http.Collections do
     get(path)
   end
 
-  # # # # # # ## # # # # # #
-  # *       Points       * #
-  # # # # # # ## # # # # # #
+  @doc """
+  Get list of snapshots for a collection. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/list_snapshots)
+  """
+  @spec list_collection_snapshots(String.t()) :: {:ok, map()} | {:error, any()}
+  def list_collection_snapshots(collection_name) do
+    path = "/#{collection_name}/snapshots"
+    get(path)
+  end
+
+  @doc """
+  Create a new snapshot for a collection. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/create_snapshot)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to create a snapshot for
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen. If false - let changes happen in background. Default is true.
+  """
+  @spec create_collection_snapshot(String.t(), boolean()) :: {:ok, map()} | {:error, any()}
+  def create_collection_snapshot(collection_name, wait \\ true) do
+    path = "/#{collection_name}/snapshots?wait=#{wait}"
+    post(path, %{})
+  end
+
+  @doc """
+  Delete snapshot for a collection [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/delete_snapshot)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to delete a snapshot for
+
+  - snapshot_name **required** : Name of the snapshot to delete
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen. If false - let changes happen in background. Default is true.
+  """
+  @spec delete_collection_snapshot(String.t(), String.t(), boolean()) :: {:ok, map()} | {:error, any()}
+  def delete_collection_snapshot(collection_name, snapshot_name, wait \\ true) do
+    path = "/#{collection_name}/snapshots/#{snapshot_name}?wait=#{wait}"
+    delete(path)
+  end
+
+  @doc """
+  Download specified snapshot from a collection as a file. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/get_snapshot)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to download a snapshot for
+
+  - snapshot_name **required** : Name of the snapshot to download
+  """
+  @spec download_collection_snapshot(String.t(), String.t()) :: {:ok, map()} | {:error, any()}
+  def download_collection_snapshot(collection_name, snapshot_name) do
+    path = "/#{collection_name}/snapshots/#{snapshot_name}"
+    get(path)
+  end
+
+  # TODO: Add `recover_from_uploaded_snapshot`
+  # TODO: Add `recover_from_snapshot`
 
   # * Private helpers
   defp timeout_query(timeout), do: if(timeout, do: "?timeout=#{timeout}", else: "")
