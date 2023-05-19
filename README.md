@@ -1,6 +1,10 @@
 # Qdrant Elixir Client
 
+## ⚠️ This library is under active development and is subject to change. Please use the latest version from GitHub ⚠️
+
 An Elixir client for the Qdrant vector similarity search engine. This library provides a convenient way to interact with the Qdrant API, offering functionality to create collections, insert vectors, search, delete data, and more.
+
+[![Hex.pm](https://img.shields.io/hexpm/v/qdrant.svg)](https://hex.pm/packages/qdrant) [![Hex.pm](https://img.shields.io/hexpm/dt/qdrant.svg)](https://hex.pm/packages/qdrant) [![Hex.pm](https://img.shields.io/hexpm/l/qdrant.svg)](https://hex.pm/packages/qdrant)
 
 ## Installation
 
