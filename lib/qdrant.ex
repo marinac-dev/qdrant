@@ -113,7 +113,7 @@ defmodule Qdrant do
   ```
   """
   def search_points(collection_name, body, consistency \\ nil) do
-    api_call("Points", :search, [collection_name, body, consistency])
+    api_call("Points", :search_points, [collection_name, body, consistency])
   end
 
   @doc """
