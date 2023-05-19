@@ -14,7 +14,7 @@ by adding `qdrant` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:qdrant, "~> 0.7.0"}
+    {:qdrant, "~> 0.8.0"}
     # Or use the latest version from GitHub | Recommended during development phase
     {:qdrant, git: "git@github.com:marinac-dev/qdrant.git"},
   ]
