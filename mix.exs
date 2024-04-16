@@ -4,8 +4,8 @@ defmodule Qdrant.MixProject do
   def project do
     [
       app: :qdrant,
-      version: "0.0.8",
-      elixir: "~> 1.14",
+      version: "0.0.9",
+      elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       name: "Qdrant",
@@ -31,10 +31,11 @@ defmodule Qdrant.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, "~> 0.29.3"},
-      {:tesla, "~> 1.5"},
+      {:ex_doc, "~> 0.31.1"},
+      {:tesla, "~> 1.8"},
       {:jason, "~> 1.4"},
-      {:mox, "~> 1.0"}
+      {:mox, "~> 1.1", only: :test},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 

@@ -54,6 +54,14 @@ defmodule Qdrant.Api.Http.Points do
 
   @type filter_type :: list(field_condition()) | %{is_empty: map()} | %{has_id: extended_point_id()}
 
+  @type filter ::
+          %{
+            must: filter_type(),
+            should: filter_type(),
+            must_not: filter_type()
+          }
+          | nil
+
   @type search_params :: %{
           hnsw_ef: integer() | nil,
           exact: boolean(),
@@ -337,6 +345,37 @@ defmodule Qdrant.Api.Http.Points do
       |> add_query_param("ordering", ordering)
 
     post(path, body)
+  end
+
+  @doc """
+  Batch update points in a collection.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to apply operations on
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body
+
+  - Described by the `UpdateOperations` schema, includes update operations.
+
+  ## Response
+
+  - On success, returns an array of `UpdateResult`.
+
+  """
+  @spec batch_update_points(String.t(), map(), boolean() | nil, String.t() | nil) :: {:ok, map()} | {:error, any()}
+  def batch_update_points(collection_name, update_operations, wait \\ false, ordering \\ nil) do
+    path =
+      "/#{collection_name}/points/batch"
+      |> add_query_param("wait", wait)
+      |> add_query_param("ordering", ordering)
+
+    post(path, update_operations)
   end
 
   @doc """
