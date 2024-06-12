@@ -14,7 +14,7 @@ by adding `qdrant` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:qdrant, "~> 0.8.0"}
+    {:qdrant, "~> 0.0.8"}
     # Or use the latest version from GitHub | Recommended during development phase
     {:qdrant, git: "git@github.com:marinac-dev/qdrant.git"},
   ]
@@ -54,7 +54,7 @@ Qdrant.upsert_point(collection_name, %{points: [%{id: 1, vector: vector1}, %{id:
 
 # Search for similar vectors
 vector3 = OpenAi.embed_text("Hello world!")
-Qdrant.search(collection_name, %{vector: vector3, limit: 3})
+Qdrant.search_points(collection_name, %{vector: vector3, limit: 3})
 ```
 
 ## Contributing
