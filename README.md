@@ -54,7 +54,7 @@ Qdrant.upsert_point(collection_name, %{points: [%{id: 1, vector: vector1}, %{id:
 
 # Search for similar vectors
 vector3 = OpenAi.embed_text("Hello world!")
-Qdrant.search(collection_name, %{vector: vector3, limit: 3})
+Qdrant.search_points(collection_name, %{vector: vector3, limit: 3})
 ```
 
 ## Contributing
