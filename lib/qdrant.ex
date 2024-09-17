@@ -143,4 +143,24 @@ defmodule Qdrant do
   def get_points(collection_name, points_body, consistency \\ nil) do
     api_call("Points", :get_points, [collection_name, points_body, consistency])
   end
+
+  @doc """
+  Delete multiple points that match filtering conditions
+  
+  Parameters:
+  * `collection_name` - name of the collection to search in
+  * `body` - search body
+  * `consistency` - Define read consistency guarentees for the operation
+  
+  Example:
+  ```elixir
+  body = %{
+    points: [42, 43]
+  }
+  Qdrant.delete_points("collection_name", body)
+  ```
+  """
+  def delete_points(collection_name, body, consistency \\ nil) do
+    api_call("Points", :delete_points, [collection_name, body, consistency])
+  end
 end
