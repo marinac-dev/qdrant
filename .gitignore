@@ -27,14 +27,15 @@ qdrant-*.tar
 
 # Ignore .DS_Store files in case you're on macOS.
 .DS_Store
+
 # Ignore .elixir_ls directory
 .elixir-ls
+
 # Ignore .vscode directory
 .vscode
-# Ignore cofig folder
+
+# Ignore config folder
 config
+
 # Ignore qdrant_storage folder
 qdrant_storage/
-
-# Ignore .changelog folder
-.chglog/

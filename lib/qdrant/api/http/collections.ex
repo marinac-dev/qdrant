@@ -69,6 +69,59 @@ defmodule Qdrant.Api.Http.Collections do
           | %{drop_replica: drop_replica_params}
 
   @doc """
+  Create shard key for a collection. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/create_shard_key)
+
+  ## Path parameters
+
+  - collection_name **required**: Name of the collection to create shards for.
+
+  ## Query parameters
+
+  - timeout *optional*: Wait for operation commit timeout in seconds. If timeout is reached - request will return with service error.
+
+  ## Request body schema
+
+  - `shard_key`, `shards_number`, `replication_factor`, `placement`
+
+  ## Example
+
+      iex> Qdrant.Api.Http.Collections.create_shard_key("my_collection", %{shard_key: ..., shards_number: ..., replication_factor: ..., placement: ...}, 10)
+      {:ok, %Tesla.Env{status: 200, body: %{...}}}
+
+  """
+  @spec create_shard_key(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
+  def create_shard_key(collection_name, body, timeout \\ nil) do
+    path = "/collections/#{collection_name}/shards" <> timeout_query(timeout)
+    put(path, body)
+  end
+
+  @doc """
+  Delete a shard key from a collection. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#operation/delete_shard_key)
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to delete shard key from
+
+  ## Request body
+
+  - The request body should conform to the `DropShardingKey` schema.
+
+  ## Query parameters
+
+  - timeout *optional* : Wait for operation commit timeout in seconds. If timeout is reached - request will return with service error.
+
+  ## Example
+
+      iex> Qdrant.Api.Http.Collections.delete_shard_key("my_collection", %{shard_key: ...}, 10)
+      {:ok, %Tesla.Env{status: 200, body: %{...}}}
+  """
+  @spec delete_shard_key(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
+  def delete_shard_key(collection_name, body, timeout \\ nil) do
+    path = "/collections/#{collection_name}/shards/delete" <> timeout_query(timeout)
+    post(path, body)
+  end
+
+  @doc """
   Get list name of all existing collections. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/get_collection)
 
   ## Example
@@ -430,8 +483,62 @@ defmodule Qdrant.Api.Http.Collections do
   # TODO: Add `recover_from_uploaded_snapshot`
   # TODO: Add `recover_from_snapshot`
 
+  @doc """
+  Recover collection from an uploaded snapshot. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/recover_from_uploaded_snapshot)
+
+  ## Path parameters
+
+  - collection_name **required**: Name of the collection to recover.
+
+  ## Query parameters
+
+  - wait *optional*: If true, wait for changes to actually happen. If false - let changes happen in background. Default is true.
+
+  ## Request body schema
+
+  - `snapshot_path` **required**: Path to the uploaded snapshot file.
+
+  ## Example
+
+      iex> Qdrant.Api.Http.Collections.recover_from_uploaded_snapshot("my_collection", %{snapshot_path: "path/to/snapshot"}, true)
+      {:ok, %Tesla.Env{status: 200, body: %{"status" => "ok", "result" => "Collection recovered from the uploaded snapshot successfully"}}}
+  """
+  @spec recover_from_uploaded_snapshot(String.t(), %{snapshot_path: String.t()}, boolean()) ::
+          {:ok, map()} | {:error, any()}
+  def recover_from_uploaded_snapshot(collection_name, %{snapshot_path: _} = body, wait \\ true) do
+    path = "/#{collection_name}/snapshots/recover/uploaded?wait=#{wait}"
+    post(path, body)
+  end
+
+  @doc """
+  Recover collection from an existing snapshot. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/collections/operation/recover_from_snapshot)
+
+  ## Path parameters
+
+  - collection_name **required**: Name of the collection to recover.
+
+  ## Query parameters
+
+  - wait *optional*: If true, wait for changes to actually happen. If false - let changes happen in background. Default is true.
+
+  ## Request body schema
+
+  - `snapshot_name` **required**: Name of the snapshot to recover from.
+
+  ## Example
+
+      iex> Qdrant.Api.Http.Collections.recover_from_snapshot("my_collection", %{snapshot_name: "snapshot_name"}, true)
+      {:ok, %Tesla.Env{status: 200, body: %{"status" => "ok", "result" => "Collection recovered from the snapshot successfully"}}}
+  """
+  @spec recover_from_snapshot(String.t(), %{snapshot_name: String.t()}, boolean()) :: {:ok, map()} | {:error, any()}
+  def recover_from_snapshot(collection_name, %{snapshot_name: _} = body, wait \\ true) do
+    path = "/#{collection_name}/snapshots/recover?wait=#{wait}"
+    post(path, body)
+  end
+
   # * Private helpers
-  defp timeout_query(timeout), do: if(timeout, do: "?timeout=#{timeout}", else: "")
+  defp timeout_query(nil), do: ""
+  defp timeout_query(timeout), do: "?timeout=#{timeout}"
   defp add_query_param(path, _, nil), do: path
   defp add_query_param(path, key, value), do: path <> "&#{key}=#{value}"
 end
