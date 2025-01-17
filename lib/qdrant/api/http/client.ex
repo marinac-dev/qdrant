@@ -29,25 +29,33 @@ defmodule Qdrant.Api.Http.Client do
       defp base_url, do: "#{api_url()}:#{port()}#{api_path()}"
 
       defp api_url do
-        case Application.get_env(:qdrant, :database_url) do
+        case get_env_variable(:database_url) do
           nil -> raise "Qdrant database url is not set"
           base_url -> base_url
         end
       end
 
       defp port do
-        case Application.get_env(:qdrant, :port) do
+        case get_env_variable(:port) do
           nil -> raise "Qdrant database port is not set"
           port -> port
         end
       end
 
       defp api_key do
-        case Application.get_env(:qdrant, :api_key) do
+        case get_env_variable( :api_key) do
           nil -> raise "Qdrant api key is not set"
           api_key -> api_key
         end
       end
+
+      defp get_env_variable(key), do: parse_env_variable(Application.get_env(:qdrant, key))
+
+      defp parse_env_variable({:system, name}) do
+        System.get_env(name)
+      end
+
+      defp parse_env_variable(variable), do: variable
 
       import(Qdrant.Api.Http.Client, only: [scope: 1])
     end
