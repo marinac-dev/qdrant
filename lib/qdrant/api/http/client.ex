@@ -43,7 +43,7 @@ defmodule Qdrant.Api.Http.Client do
       end
 
       defp api_key do
-        case get_env_variable( :api_key) do
+        case get_env_variable(:api_key) do
           nil -> raise "Qdrant api key is not set"
           api_key -> api_key
         end
