@@ -146,12 +146,12 @@ defmodule Qdrant do
 
   @doc """
   Delete multiple points that match filtering conditions
-  
+
   Parameters:
   * `collection_name` - name of the collection to search in
   * `body` - search body
   * `consistency` - Define read consistency guarentees for the operation
-  
+
   Example:
   ```elixir
   body = %{
