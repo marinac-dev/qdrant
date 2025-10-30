@@ -12,7 +12,8 @@ defmodule Qdrant.Config do
   ```elixir
   config :qdrant,
     url: "http://localhost:6333",
-    api_key: "your-api-key"
+    require_api_key: false,  # Set to true for Qdrant Cloud
+    api_key: "your-api-key"  # Required if require_api_key is true
   ```
 
   Or use separate URL and port (for backward compatibility):
@@ -21,6 +22,7 @@ defmodule Qdrant.Config do
   config :qdrant,
     database_url: "http://localhost",
     port: 6333,
+    require_api_key: false,
     api_key: "your-api-key"
   ```
 
@@ -30,10 +32,20 @@ defmodule Qdrant.Config do
   - `QDRANT_URL` - Full Qdrant server URL (e.g., `http://localhost:6333`)
   - `QDRANT_DATABASE_URL` - Qdrant server URL without port (default: `http://localhost`)
   - `QDRANT_PORT` - Qdrant server port (default: `6333`)
-  - `QDRANT_API_KEY` - API key for authentication (optional)
+  - `QDRANT_REQUIRE_API_KEY` - Whether API key is required (default: `false`, auto-detected for Qdrant Cloud)
+  - `QDRANT_API_KEY` - API key for authentication (required if `require_api_key` is true)
 
   Note: If both `QDRANT_URL` and `QDRANT_DATABASE_URL`+`QDRANT_PORT` are set,
   `QDRANT_URL` takes priority.
+
+  ## Qdrant Cloud Detection
+
+  When connecting to Qdrant Cloud, the client will automatically detect this and require
+  an API key. Cloud instances are detected when:
+  - The URL contains `cloud.qdrant.io`
+  - The URL uses HTTPS and is not localhost
+
+  You can also explicitly set `require_api_key: true` in your config.
   """
 
   require Logger
@@ -115,7 +127,10 @@ defmodule Qdrant.Config do
       nil ->
         case System.get_env("QDRANT_PORT") do
           nil ->
-            Logger.warning("Qdrant port not set in config or environment variables. Using default port #{@default_port}.")
+            Logger.warning(
+              "Qdrant port not set in config or environment variables. Using default port #{@default_port}."
+            )
+
             @default_port
 
           env_port ->
@@ -135,24 +150,90 @@ defmodule Qdrant.Config do
   end
 
   @doc """
-  Returns the API key from configuration or environment variables.
+  Returns whether API key authentication is required.
 
-  Returns `nil` if not set (authentication is optional).
+  Returns `true` if:
+  - Explicitly set via config or environment variable
+  - Auto-detected as Qdrant Cloud (URL contains cloud.qdrant.io or HTTPS non-localhost)
+
+  Returns `false` by default (for docker/local instances).
   """
-  def get_api_key do
-    case Application.get_env(:qdrant, :api_key) do
+  def require_api_key? do
+    case Application.get_env(:qdrant, :require_api_key) do
       nil ->
-        case System.get_env("QDRANT_API_KEY") do
+        case System.get_env("QDRANT_REQUIRE_API_KEY") do
           nil ->
-            Logger.warning("Qdrant API key not set in config or environment variables. Requests will be made without an API key.")
-            nil
+            # Auto-detect Qdrant Cloud
+            is_cloud_instance?()
 
-          env_key ->
-            env_key
+          env_value ->
+            String.downcase(env_value) in ["true", "1", "yes"]
         end
 
-      config_key ->
-        config_key
+      config_value ->
+        config_value
     end
+  end
+
+  @doc """
+  Returns the API key from configuration or environment variables.
+
+  Returns `nil` if not set. If `require_api_key?` is true, this will log a warning.
+  """
+  def get_api_key do
+    api_key =
+      case Application.get_env(:qdrant, :api_key) do
+        nil ->
+          System.get_env("QDRANT_API_KEY")
+
+        config_key ->
+          config_key
+      end
+
+    if require_api_key?() and is_nil(api_key) do
+      Logger.warning(
+        "Qdrant API key is required but not set. Please set QDRANT_API_KEY environment variable or :api_key in config."
+      )
+
+      nil
+    else
+      api_key
+    end
+  end
+
+  @doc """
+  Returns the Tesla adapter module to use for HTTP requests.
+
+  Returns `Qdrant.TestMockAdapter` if a mock adapter is configured via
+  `:tesla_adapter` in application config, otherwise returns `Tesla.Adapter.Mint`.
+
+  ## Options
+
+  - `:adapter` - Optional adapter override. If provided and truthy, uses mock adapter.
+
+  ## Example
+
+      iex> Qdrant.Config.get_adapter()
+      Tesla.Adapter.Mint
+
+      iex> Application.put_env(:qdrant, :tesla_adapter, fn _ -> {:ok, %{}} end)
+      iex> Qdrant.Config.get_adapter()
+      Qdrant.TestMockAdapter
+  """
+  def get_adapter(opts \\ []) do
+    adapter_fn = Keyword.get(opts, :adapter) || Application.get_env(:qdrant, :tesla_adapter)
+
+    if adapter_fn do
+      Qdrant.TestMockAdapter
+    else
+      Tesla.Adapter.Mint
+    end
+  end
+
+  defp is_cloud_instance? do
+    url = base_url()
+
+    String.contains?(String.downcase(url), "api.cloud.qdrant.io") ||
+      (String.starts_with?(url, "https://") && not String.contains?(url, "localhost"))
   end
 end

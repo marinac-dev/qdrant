@@ -41,7 +41,9 @@ defmodule Qdrant.Api.Http.Client do
         key -> [{Tesla.Middleware.Headers, [{"api-key", key}]} | middleware]
       end
 
-    Tesla.client(middleware)
+    adapter = Qdrant.Config.get_adapter(opts)
+
+    Tesla.client(middleware, adapter)
   end
 
   @doc """
