@@ -51,6 +51,18 @@ defmodule Qdrant do
   end
 
   @doc """
+  Get detailed information about specified existing collection.
+
+  Example:
+  ```elixir
+  Qdrant.get_collection("collection_name")
+  ```
+  """
+  def get_collection(collection_name) do
+    api_call("Collections", :get_collection, [collection_name])
+  end
+
+  @doc """
   Check if a collection exists.
   """
   def collection_exists(collection_name) do
@@ -183,5 +195,41 @@ defmodule Qdrant do
   """
   def delete_points(collection_name, body, wait \\ false, ordering \\ nil) do
     api_call("Points", :delete_points, [collection_name, body, wait, ordering])
+  end
+
+  @doc """
+  Query points using a query string or vector query.
+
+  Parameters:
+  * `collection_name` - name of the collection to query
+  * `body` - query body with `query` key (required)
+  * `consistency` - Define read consistency guarantees for the operation
+
+  Body must be a map with the key `query`, example:
+
+  ```elixir
+  %{
+    query: %{
+      vector: vector,
+      limit: 10
+    },
+    with_payload: true
+  }
+  ```
+
+  Example:
+  ```elixir
+  body = %{
+    query: %{
+      vector: vector,
+      limit: 10
+    },
+    with_payload: true
+  }
+  Qdrant.query_points("collection_name", body)
+  ```
+  """
+  def query_points(collection_name, body, consistency \\ nil) do
+    api_call("Points", :query_points, [collection_name, body, consistency])
   end
 end
