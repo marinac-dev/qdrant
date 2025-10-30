@@ -2,7 +2,9 @@ defmodule Qdrant.Api.Wrapper do
   defmacro __using__(_opts) do
     quote do
       defp module_name(module) do
-        case Application.get_env(:qdrant, :interface) do
+        interface = Application.get_env(:qdrant, :interface, "rest")
+
+        case interface do
           "rest" ->
             Module.concat(["Qdrant", "Api", "Http", module])
 
