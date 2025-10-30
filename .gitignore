@@ -39,3 +39,7 @@ config
 
 # Ignore qdrant_storage folder
 qdrant_storage/
+
+# Ignore .env file
+.env
+.envrc

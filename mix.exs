@@ -33,6 +33,7 @@ defmodule Qdrant.MixProject do
     [
       {:ex_doc, "~> 0.39.1"},
       {:tesla, "~> 1.15"},
+      {:mint, "~> 1.7"},
       {:mox, "~> 1.2", only: :test, runtime: false},
       {:excoveralls, "~> 0.18.5", only: :test}
     ]
