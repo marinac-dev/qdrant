@@ -1,13 +1,17 @@
 defmodule Qdrant do
   @moduledoc """
-  Documentation for Qdrant.
+  Qdrant Elixir client for interacting with Qdrant vector database.
+
+  This module provides a high-level API for all Qdrant operations.
   """
 
   use Qdrant.Api.Wrapper
 
-  @doc """
+  # Collections operations
 
+  @doc """
   Creates a collection with the given name and body.
+
   Body must be a map with the key `vectors`, example:
 
   ```elixir
@@ -35,7 +39,7 @@ defmodule Qdrant do
   @doc """
   Returns a list of all collections.
   """
-  def list_collections() do
+  def list_collections do
     api_call("Collections", :list_collections, [])
   end
 
@@ -43,8 +47,24 @@ defmodule Qdrant do
   Returns information about a collection with the given name.
   """
   def collection_info(collection_name) do
-    api_call("Collections", :collection_info, [collection_name])
+    api_call("Collections", :get_collection, [collection_name])
   end
+
+  @doc """
+  Check if a collection exists.
+  """
+  def collection_exists(collection_name) do
+    api_call("Collections", :collection_exists, [collection_name])
+  end
+
+  @doc """
+  Update collection parameters.
+  """
+  def update_collection(collection_name, body, timeout \\ nil) do
+    api_call("Collections", :update_collection, [collection_name, body, timeout])
+  end
+
+  # Points operations
 
   @doc """
   Perform insert + updates on points. If point with given ID already exists - it will be overwritten.
@@ -146,12 +166,13 @@ defmodule Qdrant do
 
   @doc """
   Delete multiple points that match filtering conditions
-  
+
   Parameters:
   * `collection_name` - name of the collection to search in
   * `body` - search body
-  * `consistency` - Define read consistency guarentees for the operation
-  
+  * `wait` - wait for changes to actually happen
+  * `ordering` - Define ordering guarantees for the operation
+
   Example:
   ```elixir
   body = %{
@@ -160,7 +181,7 @@ defmodule Qdrant do
   Qdrant.delete_points("collection_name", body)
   ```
   """
-  def delete_points(collection_name, body, consistency \\ nil) do
-    api_call("Points", :delete_points, [collection_name, body, consistency])
+  def delete_points(collection_name, body, wait \\ false, ordering \\ nil) do
+    api_call("Points", :delete_points, [collection_name, body, wait, ordering])
   end
 end
