@@ -8,11 +8,11 @@ defmodule Qdrant.Api.Http.Points do
   Points are stored in collections, and each collection has its own set of vectors.
   """
 
-  use Qdrant.Api.Http.Client
   use Qdrant.Utils.Types
 
-  @doc false
-  scope "/collections"
+  alias Qdrant.Api.Http.Client
+
+  defp client, do: Client.client()
 
   @type vectors :: list(vector())
   @type points_batch :: %{
@@ -135,10 +135,12 @@ defmodule Qdrant.Api.Http.Points do
   @spec get_point(String.t(), String.t() | non_neg_integer(), consistency() | nil) :: {:ok, map()} | {:error, any()}
   def get_point(collection_name, id, consistency \\ nil) do
     path =
-      "/#{collection_name}/points/#{id}?"
-      |> add_query_param("consistency", consistency)
+      "/collections/#{collection_name}/points/#{id}"
+      |> Client.add_query_param("consistency", consistency)
 
-    get(path)
+    client()
+    |> Tesla.get(path)
+    |> parse_response()
   end
 
   @doc """
@@ -162,10 +164,12 @@ defmodule Qdrant.Api.Http.Points do
   @spec get_points(String.t(), get_points_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
   def get_points(collection_name, body, consistency \\ nil) do
     path =
-      "/#{collection_name}/points?"
-      |> add_query_param("consistency", consistency)
+      "/collections/#{collection_name}/points"
+      |> Client.add_query_param("consistency", consistency)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -190,11 +194,13 @@ defmodule Qdrant.Api.Http.Points do
   @spec upsert_points(String.t(), upsert_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
   def upsert_points(collection_name, body, wait \\ false, ordering \\ nil) do
     path =
-      "/#{collection_name}/points?"
-      |> add_query_param("wait", wait)
-      |> add_query_param("ordering", ordering)
+      "/collections/#{collection_name}/points"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
 
-    put(path, body)
+    client()
+    |> Tesla.put(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -217,11 +223,13 @@ defmodule Qdrant.Api.Http.Points do
   @spec delete_points(String.t(), delete_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
   def delete_points(collection_name, body, wait \\ false, ordering \\ nil) do
     path =
-      "/#{collection_name}/points/delete?"
-      |> add_query_param("wait", wait)
-      |> add_query_param("ordering", ordering)
+      "/collections/#{collection_name}/points/delete"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -248,11 +256,13 @@ defmodule Qdrant.Api.Http.Points do
   @spec set_payload(String.t(), set_payload_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
   def set_payload(collection_name, body, wait \\ false, ordering \\ nil) do
     path =
-      "/#{collection_name}/points/payload?"
-      |> add_query_param("wait", wait)
-      |> add_query_param("ordering", ordering)
+      "/collections/#{collection_name}/points/payload"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -280,11 +290,13 @@ defmodule Qdrant.Api.Http.Points do
           {:ok, map()} | {:error, any()}
   def overwrite_payload(collection_name, body, wait \\ false, ordering \\ nil) do
     path =
-      "/#{collection_name}/points/payload?"
-      |> add_query_param("wait", wait)
-      |> add_query_param("ordering", ordering)
+      "/collections/#{collection_name}/points/payload"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
 
-    put(path, body)
+    client()
+    |> Tesla.put(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -312,11 +324,13 @@ defmodule Qdrant.Api.Http.Points do
           {:ok, map()} | {:error, any()}
   def delete_payload(collection_name, body, wait \\ false, ordering \\ nil) do
     path =
-      "/#{collection_name}/points/payload/delete?"
-      |> add_query_param("wait", wait)
-      |> add_query_param("ordering", ordering)
+      "/collections/#{collection_name}/points/payload/delete"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -340,11 +354,13 @@ defmodule Qdrant.Api.Http.Points do
           {:ok, map()} | {:error, any()}
   def clear_payload(collection_name, body, wait \\ false, ordering \\ nil) do
     path =
-      "/#{collection_name}/points/payload/clear?"
-      |> add_query_param("wait", wait)
-      |> add_query_param("ordering", ordering)
+      "/collections/#{collection_name}/points/payload/clear"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -371,11 +387,13 @@ defmodule Qdrant.Api.Http.Points do
   @spec batch_update_points(String.t(), map(), boolean() | nil, String.t() | nil) :: {:ok, map()} | {:error, any()}
   def batch_update_points(collection_name, update_operations, wait \\ false, ordering \\ nil) do
     path =
-      "/#{collection_name}/points/batch"
-      |> add_query_param("wait", wait)
-      |> add_query_param("ordering", ordering)
+      "/collections/#{collection_name}/points/batch"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
 
-    post(path, update_operations)
+    client()
+    |> Tesla.post(path, update_operations)
+    |> parse_response()
   end
 
   @doc """
@@ -404,10 +422,12 @@ defmodule Qdrant.Api.Http.Points do
   @spec scroll_points(String.t(), scroll_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
   def scroll_points(collection_name, body, consistency \\ nil) do
     path =
-      "/#{collection_name}/points/scroll?"
-      |> add_query_param("consistency", consistency)
+      "/collections/#{collection_name}/points/scroll"
+      |> Client.add_query_param("consistency", consistency)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -443,10 +463,12 @@ defmodule Qdrant.Api.Http.Points do
   @spec search_points(String.t(), search_body(), integer() | nil) :: {:ok, map()} | {:error, any()}
   def search_points(collection_name, body, consistency \\ nil) do
     path =
-      "/#{collection_name}/points/search"
-      |> add_query_param("consistency", consistency)
+      "/collections/#{collection_name}/points/search"
+      |> Client.add_query_param("consistency", consistency)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -467,10 +489,12 @@ defmodule Qdrant.Api.Http.Points do
   @spec search_points_batch(String.t(), search_batch_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
   def search_points_batch(collection_name, body, consistency \\ nil) do
     path =
-      "/#{collection_name}/points/search/batch"
-      |> add_query_param("consistency", consistency)
+      "/collections/#{collection_name}/points/search/batch"
+      |> Client.add_query_param("consistency", consistency)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -511,10 +535,12 @@ defmodule Qdrant.Api.Http.Points do
   @spec recommend_points(String.t(), recommend_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
   def recommend_points(collection_name, body, consistency \\ nil) do
     path =
-      "/#{collection_name}/points/recommend"
-      |> add_query_param("consistency", consistency)
+      "/collections/#{collection_name}/points/recommend"
+      |> Client.add_query_param("consistency", consistency)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -536,10 +562,316 @@ defmodule Qdrant.Api.Http.Points do
           {:ok, map()} | {:error, any()}
   def recommend_points_batch(collection_name, body, consistency \\ nil) do
     path =
-      "/#{collection_name}/points/recommend/batch"
-      |> add_query_param("consistency", consistency)
+      "/collections/#{collection_name}/points/recommend/batch"
+      |> Client.add_query_param("consistency", consistency)
 
-    post(path, body)
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Update specified vectors on points.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to update vectors in
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `points` **required** : List of points to update vectors for
+  - `vector` **required** : Vector to update
+  """
+  @spec update_vectors(String.t(), map(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
+  def update_vectors(collection_name, body, wait \\ false, ordering \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/vectors"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
+
+    client()
+    |> Tesla.put(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Delete specified vectors from points.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to delete vectors from
+
+  ## Query parameters
+
+  - `wait` *optional* : If true, wait for changes to actually happen
+  - `ordering` *optional* : Define ordering guarantees for the operation
+
+  ## Request body schema
+
+  - `points` **required** : List of points to delete vectors from
+  - `vector` **required** : Vector name to delete
+  """
+  @spec delete_vectors(String.t(), map(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
+  def delete_vectors(collection_name, body, wait \\ false, ordering \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/vectors/delete"
+      |> Client.add_query_param("wait", wait)
+      |> Client.add_query_param("ordering", ordering)
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Search points grouped by a given field.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  Similar to search_points but with grouping parameters
+  """
+  @spec search_points_groups(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def search_points_groups(collection_name, body, consistency \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/search/groups"
+      |> Client.add_query_param("consistency", consistency)
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Recommend points grouped by a given field.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  Similar to recommend_points but with grouping parameters
+  """
+  @spec recommend_points_groups(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def recommend_points_groups(collection_name, body, consistency \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/recommend/groups"
+      |> Client.add_query_param("consistency", consistency)
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Discover points using context pairs.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `context` **required** : Pairs of {positive, negative} examples
+  - `target` *optional* : Target vector to discover
+  - Other similar parameters to search
+  """
+  @spec discover_points(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def discover_points(collection_name, body, consistency \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/discover"
+      |> Client.add_query_param("consistency", consistency)
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Discover points using context pairs in batch.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `searches` **required** : List of discover requests
+  """
+  @spec discover_points_batch(String.t(), list(map()), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def discover_points_batch(collection_name, body, consistency \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/discover/batch"
+      |> Client.add_query_param("consistency", consistency)
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Calculate facet aggregation for points.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection
+
+  ## Request body schema
+
+  - `facet` **required** : Facet configuration
+  - `filter` *optional* : Filter to apply
+  """
+  @spec facet_points(String.t(), map()) :: {:ok, map()} | {:error, any()}
+  def facet_points(collection_name, body) do
+    path = "/collections/#{collection_name}/facet"
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Query points using a query string.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to query
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `query` **required** : Query string or vector query
+  - Other similar parameters to search
+  """
+  @spec query_points(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def query_points(collection_name, body, consistency \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/query"
+      |> Client.add_query_param("consistency", consistency)
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Query points using a query string in batch.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to query
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  - `searches` **required** : List of query requests
+  """
+  @spec query_points_batch(String.t(), list(map()), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def query_points_batch(collection_name, body, consistency \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/query/batch"
+      |> Client.add_query_param("consistency", consistency)
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Query points grouped by a given field.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to query
+
+  ## Query parameters
+
+  - `consistency` *optional* : Define read consistency guarantees for the operation
+
+  ## Request body schema
+
+  Similar to query_points but with grouping parameters
+  """
+  @spec query_points_groups(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
+  def query_points_groups(collection_name, body, consistency \\ nil) do
+    path =
+      "/collections/#{collection_name}/points/query/groups"
+      |> Client.add_query_param("consistency", consistency)
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Search points by vector pairs.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Request body schema
+
+  - `searches` **required** : List of vector pairs to search
+  """
+  @spec search_matrix_pairs(String.t(), map()) :: {:ok, map()} | {:error, any()}
+  def search_matrix_pairs(collection_name, body) do
+    path = "/collections/#{collection_name}/points/search/matrix/pairs"
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
+  end
+
+  @doc """
+  Search points by vector offsets.
+
+  ## Path parameters
+
+  - collection_name **required** : Name of the collection to search in
+
+  ## Request body schema
+
+  - `searches` **required** : List of vector offsets to search
+  """
+  @spec search_matrix_offsets(String.t(), map()) :: {:ok, map()} | {:error, any()}
+  def search_matrix_offsets(collection_name, body) do
+    path = "/collections/#{collection_name}/points/search/matrix/offsets"
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
   @doc """
@@ -557,12 +889,23 @@ defmodule Qdrant.Api.Http.Points do
   """
   @spec count_points(String.t(), %{filter: filter_type(), exact: boolean()}) :: {:ok, map()} | {:error, any()}
   def count_points(collection_name, body) do
-    path = "/#{collection_name}/points/count"
-    post(path, body)
+    path = "/collections/#{collection_name}/points/count"
+
+    client()
+    |> Tesla.post(path, body)
+    |> parse_response()
   end
 
-  # * Private helpers
+  # Private helpers
+  defp parse_response({:ok, %Tesla.Env{status: 200, body: body}}) do
+    {:ok, body}
+  end
 
-  defp add_query_param(path, _, nil), do: path
-  defp add_query_param(path, key, value), do: path <> "&#{key}=#{value}"
+  defp parse_response({:error, reason}) do
+    {:error, reason}
+  end
+
+  defp parse_response({:ok, %Tesla.Env{} = env}) do
+    {:error, %{status: env.status, body: env.body}}
+  end
 end
