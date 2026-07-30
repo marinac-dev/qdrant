@@ -1,911 +1,484 @@
 defmodule Qdrant.Api.Http.Points do
   @moduledoc """
-  Qdrant API Points. Float-point vectors with payload.
+  Client-aware Qdrant points and search API.
 
-  Points are the main data structure in Qdrant.
-  Each point is a vector of floats, that is associated with an ID and a payload.
-  Qdrant allows to perform search operations on points, and also to store arbitrary JSON payloads with each point.
-  Points are stored in collections, and each collection has its own set of vectors.
+  Each operation accepts a `Qdrant.Client` first and a keyword list of request
+  options last. No-client positional forms remain available for compatibility.
   """
 
-  use Qdrant.Utils.Types
+  alias Qdrant.Api.Http.Request
+  alias Qdrant.{Client, Config, Types}
 
-  alias Qdrant.Api.Http.Client
+  @consistency [:consistency]
+  @write_options [:wait, :ordering]
+  @search_options [:consistency, :timeout]
+  @timeout [:timeout]
 
-  defp client, do: Client.client()
-
-  @type vectors :: list(vector())
-  @type points_batch :: %{
-          batch: %{ids: list(non_neg_integer() | String.t()), vectors: vectors(), payloads: list(map())}
-        }
-
-  @type get_points_body :: %{
-          ids: list(non_neg_integer() | String.t()),
-          with_payload: with_payload_interface(),
-          with_vector: boolean() | list(String.t())
-        }
-
-  @type points_list :: %{points: list(point())}
-  @type upsert_body :: points_batch() | points_list()
-
-  @type delete_body ::
-          %{points: list(non_neg_integer() | String.t())}
-          | %{filter: %{must: filter_type(), should: filter_type(), must_not: filter_type()}}
-
-  @type field_condition :: %{
-          key: String.t(),
-          match: %{value: String.t()} | %{text: String.t()} | %{any: String.t()},
-          range: %{gte: float(), lte: float(), gt: float(), lt: float()},
-          geo_bounding_box: %{
-            top_left: %{lat: float(), lon: float()},
-            bottom_right: %{lat: float(), lon: float()}
-          },
-          geo_radius: %{
-            center: %{lat: float(), lon: float()},
-            radius: float()
-          },
-          values_count: %{
-            lt: non_neg_integer(),
-            lte: non_neg_integer(),
-            gt: non_neg_integer(),
-            gte: non_neg_integer()
-          }
-        }
-
-  @type filter_type :: list(field_condition()) | %{is_empty: map()} | %{has_id: extended_point_id()}
-
-  @type filter ::
-          %{
-            must: filter_type(),
-            should: filter_type(),
-            must_not: filter_type()
-          }
-          | nil
-
-  @type search_params :: %{
-          hnsw_ef: integer() | nil,
-          exact: boolean(),
-          quantization: %{ignore: boolean() | false, rescore: boolean() | false} | nil
-        }
-
-  @type search_body :: %{
-          vector: vector(),
-          filter: %{must: filter_type(), should: filter_type(), must_not: filter_type()} | nil,
-          params: search_params(),
-          limit: integer(),
-          offset: non_neg_integer(),
-          with_payload: with_payload_interface(),
-          with_vector: boolean() | list(String.t()),
-          score_threshold: integer() | nil
-        }
-
-  @type set_payload_body :: %{payload: map(), points: extended_point_id(), filter: filter_type()}
-  @type delete_payload_body :: %{keys: list(String.t()), points: extended_point_id(), filter: filter_type()}
-
-  @type scroll_body :: %{
-          offset: non_neg_integer() | String.t(),
-          limit: non_neg_integer(),
-          filter: filter_type(),
-          with_payload: with_payload_interface(),
-          with_vector: boolean() | list(String.t())
-        }
-
-  @type search_request :: %{
-          vector: vector(),
-          filter: filter_type(),
-          params: search_params(),
-          limit: non_neg_integer(),
-          offset: non_neg_integer(),
-          with_payload: with_payload_interface(),
-          with_vector: boolean() | list(String.t()),
-          score_threshold: integer() | nil
-        }
-
-  @type search_batch_body :: list(search_request())
-
-  @type recommend_body :: %{
-          positive: extended_point_id(),
-          negative: extended_point_id(),
-          filter: filter_type(),
-          params: search_params(),
-          limit: non_neg_integer(),
-          offset: non_neg_integer(),
-          with_payload: with_payload_interface(),
-          with_vector: boolean() | list(String.t()),
-          score_threshold: non_neg_integer() | nil,
-          using: String.t(),
-          lookup_from: %{collection: String.t(), vector: String.t()} | nil
-        }
-
-  @type recommend_batch_body :: list(recommend_body())
+  @compat_operations [
+    get_point: 3,
+    get_points: 3,
+    upsert_points: 3,
+    delete_points: 3,
+    set_payload: 3,
+    overwrite_payload: 3,
+    delete_payload: 3,
+    clear_payload: 3,
+    batch_update_points: 3,
+    scroll_points: 3,
+    search_points: 3,
+    search_points_batch: 3,
+    recommend_points: 3,
+    recommend_points_batch: 3,
+    update_vectors: 3,
+    delete_vectors: 3,
+    search_points_groups: 3,
+    recommend_points_groups: 3,
+    discover_points: 3,
+    discover_points_batch: 3,
+    facet_points: 3,
+    query_points: 3,
+    query_points_batch: 3,
+    query_points_groups: 3,
+    search_matrix_pairs: 3,
+    search_matrix_offsets: 3,
+    count_points: 3
+  ]
 
   @doc """
-  Retrieve full information of single point by id.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to update from
-
-  - id **required** : ID of the point to retrieve
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
+  Retrieves one point. Options: `:consistency`.
   """
-  @spec get_point(String.t(), String.t() | non_neg_integer(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def get_point(collection_name, id, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/#{id}"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.get(path)
-    |> parse_response()
+  @spec get_point(Client.t(), String.t(), Types.extended_point_id(), Types.request_options()) :: Types.result()
+  def get_point(%Client{} = client, collection_name, id, opts) do
+    request(client, :get, points_path(collection_name) <> "/" <> Request.segment(id), :no_body, opts, @consistency)
   end
+
+  def get_point(%Client{} = client, collection_name, id), do: get_point(client, collection_name, id, [])
+
+  def get_point(collection_name, id, consistency),
+    do: compat(:get_point, [collection_name, id, [consistency: consistency]])
+
+  def get_point(collection_name, id), do: compat(:get_point, [collection_name, id, []])
 
   @doc """
-  Retrieve multiple points by specified IDs.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to update from
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `ids` **required** : List of IDs to retrieve
-  - `with_payload` *optional* : Select which payload to return with the response. Default: All
-  - `with_vector` *optional* : Options for specifying which vector to include
+  Retrieves points by ID. Options: `:consistency`.
   """
-
-  @spec get_points(String.t(), get_points_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def get_points(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec get_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def get_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name), body, opts, @consistency)
   end
+
+  def get_points(%Client{} = client, collection_name, body), do: get_points(client, collection_name, body, [])
+
+  def get_points(collection_name, body, consistency),
+    do: compat(:get_points, [collection_name, body, [consistency: consistency]])
+
+  def get_points(collection_name, body), do: compat(:get_points, [collection_name, body, []])
 
   @doc """
-  Perform insert + updates on points. If point with given ID already exists - it will be overwritten. [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/points/operation/upsert_points)
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to update from
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body schema
-
-  - `batch` **required** : List of points to insert or update
-  OR
-  - `points` **required** : Point to insert or update
+  Inserts or replaces points. Options: `:wait`, `:ordering`.
   """
-  @spec upsert_points(String.t(), upsert_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
-  def upsert_points(collection_name, body, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.put(path, body)
-    |> parse_response()
+  @spec upsert_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def upsert_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :put, points_path(collection_name), body, opts, @write_options)
   end
+
+  def upsert_points(collection_name, body, wait, ordering),
+    do: compat(:upsert_points, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def upsert_points(%Client{} = client, collection_name, body), do: upsert_points(client, collection_name, body, [])
+  def upsert_points(collection_name, body, wait), do: compat(:upsert_points, [collection_name, body, [wait: wait]])
+  def upsert_points(collection_name, body), do: compat(:upsert_points, [collection_name, body, [wait: false]])
 
   @doc """
-  Delete points
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to update from
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body schema
-
-  - `points` **required** : List of points to delete
+  Deletes points selected by the request body. Options: `:wait`, `:ordering`.
   """
-  @spec delete_points(String.t(), delete_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
-  def delete_points(collection_name, body, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/delete"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec delete_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def delete_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/delete", body, opts, @write_options)
   end
+
+  def delete_points(collection_name, body, wait, ordering),
+    do: compat(:delete_points, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def delete_points(%Client{} = client, collection_name, body), do: delete_points(client, collection_name, body, [])
+  def delete_points(collection_name, body, wait), do: compat(:delete_points, [collection_name, body, [wait: wait]])
+  def delete_points(collection_name, body), do: compat(:delete_points, [collection_name, body, [wait: false]])
 
   @doc """
-  Set payload values for points
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to set from
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body schema
-
-  - `payload` **required** : Payload to set
-
-  - `points` **required** : Assigns payload to each point in this list
-
-  - `filter` *optional* : Assigns payload to each point that satisfy this filter condition
+  Sets payload values. Options: `:wait`, `:ordering`.
   """
-  @spec set_payload(String.t(), set_payload_body(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
-  def set_payload(collection_name, body, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/payload"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec set_payload(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def set_payload(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/payload", body, opts, @write_options)
   end
+
+  def set_payload(collection_name, body, wait, ordering),
+    do: compat(:set_payload, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def set_payload(%Client{} = client, collection_name, body), do: set_payload(client, collection_name, body, [])
+  def set_payload(collection_name, body, wait), do: compat(:set_payload, [collection_name, body, [wait: wait]])
+  def set_payload(collection_name, body), do: compat(:set_payload, [collection_name, body, [wait: false]])
 
   @doc """
-  Replace full payload of points with new one
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to set from
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body schema
-
-  - `payload` **required** : Payload to set
-
-  - `points` **required** : Assigns payload to each point in this list
-
-  - `filter` *optional* : Assigns payload to each point that satisfy this filter condition
+  Replaces complete payloads. Options: `:wait`, `:ordering`.
   """
-  @spec overwrite_payload(String.t(), set_payload_body(), boolean() | nil, ordering() | nil) ::
-          {:ok, map()} | {:error, any()}
-  def overwrite_payload(collection_name, body, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/payload"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.put(path, body)
-    |> parse_response()
+  @spec overwrite_payload(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def overwrite_payload(%Client{} = client, collection_name, body, opts) do
+    request(client, :put, points_path(collection_name) <> "/payload", body, opts, @write_options)
   end
+
+  def overwrite_payload(collection_name, body, wait, ordering),
+    do: compat(:overwrite_payload, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def overwrite_payload(%Client{} = client, collection_name, body),
+    do: overwrite_payload(client, collection_name, body, [])
+
+  def overwrite_payload(collection_name, body, wait),
+    do: compat(:overwrite_payload, [collection_name, body, [wait: wait]])
+
+  def overwrite_payload(collection_name, body), do: compat(:overwrite_payload, [collection_name, body, [wait: false]])
 
   @doc """
-  Delete specified key payload for points
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to delete from
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body schema
-
-  - `keys` **required** : List of payload keys to remove from payload
-
-  - `points` **required** : Deletes values from each point in this list
-
-  - `filter` *optional* : Deletes values from points that satisfy this filter condition
+  Deletes payload keys. Options: `:wait`, `:ordering`.
   """
-  @spec delete_payload(String.t(), delete_payload_body(), boolean() | nil, ordering() | nil) ::
-          {:ok, map()} | {:error, any()}
-  def delete_payload(collection_name, body, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/payload/delete"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec delete_payload(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def delete_payload(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/payload/delete", body, opts, @write_options)
   end
+
+  def delete_payload(collection_name, body, wait, ordering),
+    do: compat(:delete_payload, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def delete_payload(%Client{} = client, collection_name, body), do: delete_payload(client, collection_name, body, [])
+  def delete_payload(collection_name, body, wait), do: compat(:delete_payload, [collection_name, body, [wait: wait]])
+  def delete_payload(collection_name, body), do: compat(:delete_payload, [collection_name, body, [wait: false]])
 
   @doc """
-  Remove all payload for specified points
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to clear payload from
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body schema
-
-  - `points` **required** : List of points to clear payload from
+  Clears payloads selected by a map such as `%{points: [1, 2]}` or
+  `%{filter: %{must: [...]}}`. Options: `:wait`, `:ordering`.
   """
-  @spec clear_payload(String.t(), list(integer() | String.t()), boolean() | nil, ordering() | nil) ::
-          {:ok, map()} | {:error, any()}
-  def clear_payload(collection_name, body, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/payload/clear"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec clear_payload(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def clear_payload(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/payload/clear", body, opts, @write_options)
   end
+
+  def clear_payload(collection_name, body, wait, ordering),
+    do: compat(:clear_payload, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def clear_payload(%Client{} = client, collection_name, body), do: clear_payload(client, collection_name, body, [])
+  def clear_payload(collection_name, body, wait), do: compat(:clear_payload, [collection_name, body, [wait: wait]])
+  def clear_payload(collection_name, body), do: compat(:clear_payload, [collection_name, body, [wait: false]])
 
   @doc """
-  Batch update points in a collection.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to apply operations on
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body
-
-  - Described by the `UpdateOperations` schema, includes update operations.
-
-  ## Response
-
-  - On success, returns an array of `UpdateResult`.
-
+  Applies a batch of point updates. Options: `:wait`, `:ordering`.
   """
-  @spec batch_update_points(String.t(), map(), boolean() | nil, String.t() | nil) :: {:ok, map()} | {:error, any()}
-  def batch_update_points(collection_name, update_operations, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/batch"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.post(path, update_operations)
-    |> parse_response()
+  @spec batch_update_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def batch_update_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/batch", body, opts, @write_options)
   end
+
+  def batch_update_points(collection_name, body, wait, ordering),
+    do: compat(:batch_update_points, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def batch_update_points(%Client{} = client, collection_name, body),
+    do: batch_update_points(client, collection_name, body, [])
+
+  def batch_update_points(collection_name, body, wait),
+    do: compat(:batch_update_points, [collection_name, body, [wait: wait]])
+
+  def batch_update_points(collection_name, body),
+    do: compat(:batch_update_points, [collection_name, body, [wait: false]])
 
   @doc """
-  Scroll request - paginate over all points which matches given filtering condition
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to retrieve from
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `offset` *optional* : Start ID to read points from.
-
-  - `limit` *optional* : Page size. Default: 10
-
-  - `filter` *optional* : Look only for points which satisfies this conditions. If not provided - all points.
-
-  - `with_payload` *optional* : Select which payload to return with the response. Default: All
-
-  - `with_vector` *optional* : Options for specifying which vector to include
+  Scrolls through points. Options: `:consistency`, `:timeout`.
   """
-  @spec scroll_points(String.t(), scroll_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def scroll_points(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/scroll"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec scroll_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def scroll_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/scroll", body, opts, @search_options)
   end
+
+  def scroll_points(%Client{} = client, collection_name, body), do: scroll_points(client, collection_name, body, [])
+
+  def scroll_points(collection_name, body, consistency),
+    do: compat(:scroll_points, [collection_name, body, [consistency: consistency]])
+
+  def scroll_points(collection_name, body), do: compat(:scroll_points, [collection_name, body, []])
 
   @doc """
-  Retrieve closest points based on vector similarity and given filtering conditions
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `vector` **required** : Vector to search for
-
-  - `filter` *optional* : Filter to apply to the search results. Look only for points which satisfies this conditions
-
-  - `params` *optional* : Additional search parameters
-
-  - `limit` **required** : Maximum number of points to return
-
-  - `offset` *optional* : Offset of the first result to return. May be used to paginate results. Note: large offset values may cause performance issues.
-
-  - `with_payload` *optional* : Select which payload to return with the response. Default: None
-
-  - `with_vector` *optional* : Whether to return the point vector with the result?
-
-  - `score_threshold` *optional* : Define a minimal score threshold for the result. If defined, less similar results will not be returned. Score of the returned result might be higher or smaller than the threshold depending on the Distance function used. E.g. for cosine similarity only higher scores will be returned.
+  Searches for nearest points. Options: `:consistency`, `:timeout`.
   """
-
-  @spec search_points(String.t(), search_body(), integer() | nil) :: {:ok, map()} | {:error, any()}
-  def search_points(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/search"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec search_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def search_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/search", body, opts, @search_options)
   end
+
+  def search_points(%Client{} = client, collection_name, body), do: search_points(client, collection_name, body, [])
+
+  def search_points(collection_name, body, consistency),
+    do: compat(:search_points, [collection_name, body, [consistency: consistency]])
+
+  def search_points(collection_name, body), do: compat(:search_points, [collection_name, body, []])
 
   @doc """
-  Retrieve by batch the closest points based on vector similarity and given filtering conditions
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `searches` **required** : List of searches to perform
+  Runs batch search. The body must be `%{searches: [search, ...]}`.
+  Options: `:consistency`, `:timeout`.
   """
-  @spec search_points_batch(String.t(), search_batch_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def search_points_batch(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/search/batch"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec search_points_batch(Client.t(), String.t(), Types.batch_request(), Types.request_options()) :: Types.result()
+  def search_points_batch(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/search/batch", body, opts, @search_options)
   end
+
+  def search_points_batch(%Client{} = client, collection_name, body),
+    do: search_points_batch(client, collection_name, body, [])
+
+  def search_points_batch(collection_name, body, consistency),
+    do: compat(:search_points_batch, [collection_name, body, [consistency: consistency]])
+
+  def search_points_batch(collection_name, body), do: compat(:search_points_batch, [collection_name, body, []])
 
   @doc """
-  Look for the points which are closer to stored positive examples and at the same time further to negative examples.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `positive` **required** : Look for vectors closest to those
-
-  - `negative` **required** : Look for vectors further from those | Try to avoid vectors like this
-
-  - `filter` *optional* : Look only for points which satisfies this conditions
-
-  - `params` *optional* : Additional search parameters
-
-  - `limit` **required** : Maximum number of points to return
-
-  - `offset` *optional* : Offset of the first result to return. May be used to paginate results. Note: large offset values may cause performance issues.
-
-  - `with_payload` *optional* : Select which payload to return with the response. Default: None
-
-  - `with_vector` *optional* : Whether to return the point vector with the result?
-
-  - `score_threshold` *optional* : Define a minimal score threshold for the result. If defined, less similar results will not be returned. Score of the returned result might be higher or smaller than the threshold depending on the Distance function used. E.g. for cosine similarity only higher scores will be returned.
-
-  - `using` *optional* : Define which vector to use for recommendation, if not specified - try to use default vector
-
-  - `lookup_from` *optional* : The location used to lookup vectors. If not specified - use current collection. Note: the other collection should have the same vector size as the current collection
+  Recommends points. Options: `:consistency`, `:timeout`.
   """
-  @spec recommend_points(String.t(), recommend_body(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def recommend_points(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/recommend"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec recommend_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def recommend_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/recommend", body, opts, @search_options)
   end
+
+  def recommend_points(%Client{} = client, collection_name, body),
+    do: recommend_points(client, collection_name, body, [])
+
+  def recommend_points(collection_name, body, consistency),
+    do: compat(:recommend_points, [collection_name, body, [consistency: consistency]])
+
+  def recommend_points(collection_name, body), do: compat(:recommend_points, [collection_name, body, []])
 
   @doc """
-  Request points based on positive and negative examples.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `searches` **required** : List of searches to perform
+  Runs batch recommendation. The body must be `%{searches: [recommendation, ...]}`.
+  Options: `:consistency`, `:timeout`.
   """
-  @spec recommend_points_batch(String.t(), recommend_batch_body(), consistency() | nil) ::
-          {:ok, map()} | {:error, any()}
-  def recommend_points_batch(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/recommend/batch"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec recommend_points_batch(Client.t(), String.t(), Types.batch_request(), Types.request_options()) :: Types.result()
+  def recommend_points_batch(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/recommend/batch", body, opts, @search_options)
   end
+
+  def recommend_points_batch(%Client{} = client, collection_name, body),
+    do: recommend_points_batch(client, collection_name, body, [])
+
+  def recommend_points_batch(collection_name, body, consistency),
+    do: compat(:recommend_points_batch, [collection_name, body, [consistency: consistency]])
+
+  def recommend_points_batch(collection_name, body), do: compat(:recommend_points_batch, [collection_name, body, []])
 
   @doc """
-  Update specified vectors on points.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to update vectors in
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body schema
-
-  - `points` **required** : List of points to update vectors for
-  - `vector` **required** : Vector to update
+  Updates vectors. Options: `:wait`, `:ordering`.
   """
-  @spec update_vectors(String.t(), map(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
-  def update_vectors(collection_name, body, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/vectors"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.put(path, body)
-    |> parse_response()
+  @spec update_vectors(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def update_vectors(%Client{} = client, collection_name, body, opts) do
+    request(client, :put, points_path(collection_name) <> "/vectors", body, opts, @write_options)
   end
+
+  def update_vectors(collection_name, body, wait, ordering),
+    do: compat(:update_vectors, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def update_vectors(%Client{} = client, collection_name, body), do: update_vectors(client, collection_name, body, [])
+  def update_vectors(collection_name, body, wait), do: compat(:update_vectors, [collection_name, body, [wait: wait]])
+  def update_vectors(collection_name, body), do: compat(:update_vectors, [collection_name, body, [wait: false]])
 
   @doc """
-  Delete specified vectors from points.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to delete vectors from
-
-  ## Query parameters
-
-  - `wait` *optional* : If true, wait for changes to actually happen
-  - `ordering` *optional* : Define ordering guarantees for the operation
-
-  ## Request body schema
-
-  - `points` **required** : List of points to delete vectors from
-  - `vector` **required** : Vector name to delete
+  Deletes vectors. Options: `:wait`, `:ordering`.
   """
-  @spec delete_vectors(String.t(), map(), boolean() | nil, ordering() | nil) :: {:ok, map()} | {:error, any()}
-  def delete_vectors(collection_name, body, wait \\ false, ordering \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/vectors/delete"
-      |> Client.add_query_param("wait", wait)
-      |> Client.add_query_param("ordering", ordering)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec delete_vectors(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def delete_vectors(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/vectors/delete", body, opts, @write_options)
   end
+
+  def delete_vectors(collection_name, body, wait, ordering),
+    do: compat(:delete_vectors, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def delete_vectors(%Client{} = client, collection_name, body), do: delete_vectors(client, collection_name, body, [])
+  def delete_vectors(collection_name, body, wait), do: compat(:delete_vectors, [collection_name, body, [wait: wait]])
+  def delete_vectors(collection_name, body), do: compat(:delete_vectors, [collection_name, body, [wait: false]])
 
   @doc """
-  Search points grouped by a given field.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  Similar to search_points but with grouping parameters
+  Searches points grouped by a field. Options: `:consistency`, `:timeout`.
   """
-  @spec search_points_groups(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def search_points_groups(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/search/groups"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec search_points_groups(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def search_points_groups(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/search/groups", body, opts, @search_options)
   end
+
+  def search_points_groups(%Client{} = client, collection_name, body),
+    do: search_points_groups(client, collection_name, body, [])
+
+  def search_points_groups(collection_name, body, consistency),
+    do: compat(:search_points_groups, [collection_name, body, [consistency: consistency]])
+
+  def search_points_groups(collection_name, body), do: compat(:search_points_groups, [collection_name, body, []])
 
   @doc """
-  Recommend points grouped by a given field.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  Similar to recommend_points but with grouping parameters
+  Recommends points grouped by a field. Options: `:consistency`, `:timeout`.
   """
-  @spec recommend_points_groups(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def recommend_points_groups(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/recommend/groups"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec recommend_points_groups(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def recommend_points_groups(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/recommend/groups", body, opts, @search_options)
   end
+
+  def recommend_points_groups(%Client{} = client, collection_name, body),
+    do: recommend_points_groups(client, collection_name, body, [])
+
+  def recommend_points_groups(collection_name, body, consistency),
+    do: compat(:recommend_points_groups, [collection_name, body, [consistency: consistency]])
+
+  def recommend_points_groups(collection_name, body), do: compat(:recommend_points_groups, [collection_name, body, []])
 
   @doc """
-  Discover points using context pairs.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `context` **required** : Pairs of {positive, negative} examples
-  - `target` *optional* : Target vector to discover
-  - Other similar parameters to search
+  Discovers points from context pairs. Options: `:consistency`, `:timeout`.
   """
-  @spec discover_points(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def discover_points(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/discover"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec discover_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def discover_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/discover", body, opts, @search_options)
   end
+
+  def discover_points(%Client{} = client, collection_name, body), do: discover_points(client, collection_name, body, [])
+
+  def discover_points(collection_name, body, consistency),
+    do: compat(:discover_points, [collection_name, body, [consistency: consistency]])
+
+  def discover_points(collection_name, body), do: compat(:discover_points, [collection_name, body, []])
 
   @doc """
-  Discover points using context pairs in batch.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `searches` **required** : List of discover requests
+  Runs batch discovery. The body must be `%{searches: [discovery, ...]}`.
+  Options: `:consistency`, `:timeout`.
   """
-  @spec discover_points_batch(String.t(), list(map()), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def discover_points_batch(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/discover/batch"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec discover_points_batch(Client.t(), String.t(), Types.batch_request(), Types.request_options()) :: Types.result()
+  def discover_points_batch(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/discover/batch", body, opts, @search_options)
   end
+
+  def discover_points_batch(%Client{} = client, collection_name, body),
+    do: discover_points_batch(client, collection_name, body, [])
+
+  def discover_points_batch(collection_name, body, consistency),
+    do: compat(:discover_points_batch, [collection_name, body, [consistency: consistency]])
+
+  def discover_points_batch(collection_name, body), do: compat(:discover_points_batch, [collection_name, body, []])
 
   @doc """
-  Calculate facet aggregation for points.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection
-
-  ## Request body schema
-
-  - `facet` **required** : Facet configuration
-  - `filter` *optional* : Filter to apply
+  Calculates facet values. Options: `:consistency`, `:timeout`.
   """
-  @spec facet_points(String.t(), map()) :: {:ok, map()} | {:error, any()}
-  def facet_points(collection_name, body) do
-    path = "/collections/#{collection_name}/facet"
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec facet_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def facet_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, collection_path(collection_name) <> "/facet", body, opts, @search_options)
   end
+
+  def facet_points(%Client{} = client, collection_name, body), do: facet_points(client, collection_name, body, [])
+  def facet_points(collection_name, body), do: compat(:facet_points, [collection_name, body, []])
 
   @doc """
-  Query points using a query string.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to query
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `query` **required** : Query string or vector query
-  - Other similar parameters to search
+  Runs a universal query. `:query` may be omitted for ID-ordered retrieval.
+  Options: `:consistency`, `:timeout`.
   """
-  @spec query_points(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def query_points(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/query"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec query_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def query_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/query", body, opts, @search_options)
   end
+
+  def query_points(%Client{} = client, collection_name, body), do: query_points(client, collection_name, body, [])
+
+  def query_points(collection_name, body, consistency),
+    do: compat(:query_points, [collection_name, body, [consistency: consistency]])
+
+  def query_points(collection_name, body), do: compat(:query_points, [collection_name, body, []])
 
   @doc """
-  Query points using a query string in batch.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to query
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  - `searches` **required** : List of query requests
+  Runs batch universal queries. The body must be `%{searches: [query, ...]}`.
+  Options: `:consistency`, `:timeout`.
   """
-  @spec query_points_batch(String.t(), list(map()), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def query_points_batch(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/query/batch"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec query_points_batch(Client.t(), String.t(), Types.batch_request(), Types.request_options()) :: Types.result()
+  def query_points_batch(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/query/batch", body, opts, @search_options)
   end
+
+  def query_points_batch(%Client{} = client, collection_name, body),
+    do: query_points_batch(client, collection_name, body, [])
+
+  def query_points_batch(collection_name, body, consistency),
+    do: compat(:query_points_batch, [collection_name, body, [consistency: consistency]])
+
+  def query_points_batch(collection_name, body), do: compat(:query_points_batch, [collection_name, body, []])
 
   @doc """
-  Query points grouped by a given field.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to query
-
-  ## Query parameters
-
-  - `consistency` *optional* : Define read consistency guarantees for the operation
-
-  ## Request body schema
-
-  Similar to query_points but with grouping parameters
+  Runs a grouped universal query. Options: `:consistency`, `:timeout`.
   """
-  @spec query_points_groups(String.t(), map(), consistency() | nil) :: {:ok, map()} | {:error, any()}
-  def query_points_groups(collection_name, body, consistency \\ nil) do
-    path =
-      "/collections/#{collection_name}/points/query/groups"
-      |> Client.add_query_param("consistency", consistency)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec query_points_groups(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def query_points_groups(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/query/groups", body, opts, @search_options)
   end
+
+  def query_points_groups(%Client{} = client, collection_name, body),
+    do: query_points_groups(client, collection_name, body, [])
+
+  def query_points_groups(collection_name, body, consistency),
+    do: compat(:query_points_groups, [collection_name, body, [consistency: consistency]])
+
+  def query_points_groups(collection_name, body), do: compat(:query_points_groups, [collection_name, body, []])
 
   @doc """
-  Search points by vector pairs.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Request body schema
-
-  - `searches` **required** : List of vector pairs to search
+  Calculates a distance matrix as point pairs. Options: `:consistency`, `:timeout`.
   """
-  @spec search_matrix_pairs(String.t(), map()) :: {:ok, map()} | {:error, any()}
-  def search_matrix_pairs(collection_name, body) do
-    path = "/collections/#{collection_name}/points/search/matrix/pairs"
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec search_matrix_pairs(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def search_matrix_pairs(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/search/matrix/pairs", body, opts, @search_options)
   end
+
+  def search_matrix_pairs(%Client{} = client, collection_name, body),
+    do: search_matrix_pairs(client, collection_name, body, [])
+
+  def search_matrix_pairs(collection_name, body), do: compat(:search_matrix_pairs, [collection_name, body, []])
 
   @doc """
-  Search points by vector offsets.
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to search in
-
-  ## Request body schema
-
-  - `searches` **required** : List of vector offsets to search
+  Calculates a distance matrix as offsets. Options: `:consistency`, `:timeout`.
   """
-  @spec search_matrix_offsets(String.t(), map()) :: {:ok, map()} | {:error, any()}
-  def search_matrix_offsets(collection_name, body) do
-    path = "/collections/#{collection_name}/points/search/matrix/offsets"
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec search_matrix_offsets(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def search_matrix_offsets(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/search/matrix/offsets", body, opts, @search_options)
   end
+
+  def search_matrix_offsets(%Client{} = client, collection_name, body),
+    do: search_matrix_offsets(client, collection_name, body, [])
+
+  def search_matrix_offsets(collection_name, body), do: compat(:search_matrix_offsets, [collection_name, body, []])
 
   @doc """
-  Count points which matches given filtering condition
-
-  ## Path parameters
-
-  - collection_name **required** : Name of the collection to count in
-
-  ## Request body schema
-
-  - `filter` *optional* : Filter to apply to the search results. Look only for points which satisfies this conditions
-
-  - `exact` *optional* : If true, count exact number of points. If false, count approximate number of points faster. Approximate count might be unreliable during the indexing process. Default: true
+  Counts points matching the request body. Options: `:timeout`.
   """
-  @spec count_points(String.t(), %{filter: filter_type(), exact: boolean()}) :: {:ok, map()} | {:error, any()}
-  def count_points(collection_name, body) do
-    path = "/collections/#{collection_name}/points/count"
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec count_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  def count_points(%Client{} = client, collection_name, body, opts) do
+    request(client, :post, points_path(collection_name) <> "/count", body, opts, @timeout)
   end
 
-  # Private helpers
-  defp parse_response({:ok, %Tesla.Env{status: 200, body: body}}) do
-    {:ok, body}
+  def count_points(%Client{} = client, collection_name, body), do: count_points(client, collection_name, body, [])
+  def count_points(collection_name, body), do: compat(:count_points, [collection_name, body, []])
+
+  defp request(client, method, path, :no_body, opts, query_options) do
+    Request.request(client, method, path, query: Keyword.take(opts, query_options))
   end
 
-  defp parse_response({:error, reason}) do
-    {:error, reason}
+  defp request(client, method, path, body, opts, query_options) do
+    Request.request(client, method, path, body: body, query: Keyword.take(opts, query_options))
   end
 
-  defp parse_response({:ok, %Tesla.Env{} = env}) do
-    {:error, %{status: env.status, body: env.body}}
+  defp collection_path(collection_name), do: "/collections/" <> Request.segment(collection_name)
+  defp points_path(collection_name), do: collection_path(collection_name) <> "/points"
+
+  for {function, arity} <- @compat_operations do
+    args = Macro.generate_arguments(arity, __MODULE__)
+
+    defp compat(unquote(function), [unquote_splicing(args)]) do
+      with {:ok, options} <- Config.client_options(),
+           {:ok, client} <- Client.new(options) do
+        unquote(function)(client, unquote_splicing(args))
+      end
+    end
   end
 end

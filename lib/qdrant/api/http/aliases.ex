@@ -5,9 +5,8 @@ defmodule Qdrant.Api.Http.Aliases do
   Aliases allow to give names to collections and use them instead of collection names.
   """
 
-  alias Qdrant.Api.Http.Client
-
-  defp client, do: Client.client()
+  alias Qdrant.Api.Http.Request
+  alias Qdrant.{Client, Config, Types}
 
   @doc """
   Update aliases of collections.
@@ -15,23 +14,34 @@ defmodule Qdrant.Api.Http.Aliases do
   ## Parameters
 
   * `body` **required** - Alias update operations (create, delete, rename)
-  * `timeout` - Optional timeout in seconds for operation commit
+  * `opts` - Options, including `:timeout` in seconds for operation commit
 
-  ## Example
+  ## Network example (not a doctest)
 
-      iex> body = %{actions: [%{create_alias: %{collection_name: "my_collection", alias_name: "my_alias"}}]}
-      iex> Qdrant.Api.Http.Aliases.update_aliases(body)
+      client = Qdrant.Client.new!()
+      body = %{actions: [%{create_alias: %{collection_name: "my_collection", alias_name: "my_alias"}}]}
+      Qdrant.Api.Http.Aliases.update_aliases(client, body)
       {:ok, %{"result" => true, "status" => "ok"}}
 
   """
-  @spec update_aliases(map(), integer() | nil) :: {:ok, map()} | {:error, any()}
-  def update_aliases(body, timeout \\ nil) do
-    path = "/collections/aliases" |> Client.add_query_param("timeout", timeout)
-
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  @spec update_aliases(Client.t(), Types.request_body(), Types.request_options()) :: Types.result(map())
+  def update_aliases(%Client{} = client, body, opts) do
+    Request.request(client, :post, "/collections/aliases",
+      query: [timeout: Keyword.get(opts, :timeout)],
+      body: body
+    )
   end
+
+  @spec update_aliases(Client.t(), Types.request_body()) :: Types.result(map())
+  def update_aliases(%Client{} = client, body), do: update_aliases(client, body, [])
+
+  @spec update_aliases(Types.request_body(), integer() | nil) :: Types.result(map())
+  def update_aliases(body, timeout) do
+    with_default_client(&update_aliases(&1, body, timeout: timeout))
+  end
+
+  @spec update_aliases(Types.request_body()) :: Types.result(map())
+  def update_aliases(body), do: update_aliases(body, nil)
 
   @doc """
   Get aliases for a specific collection.
@@ -40,45 +50,45 @@ defmodule Qdrant.Api.Http.Aliases do
 
   * `collection_name` **required** - Name of the collection
 
-  ## Example
+  ## Network example (not a doctest)
 
-      iex> Qdrant.Api.Http.Aliases.get_collection_aliases("my_collection")
+      client = Qdrant.Client.new!()
+      Qdrant.Api.Http.Aliases.get_collection_aliases(client, "my_collection")
       {:ok, %{"result" => %{"aliases" => [...]}}}
 
   """
-  @spec get_collection_aliases(String.t()) :: {:ok, map()} | {:error, any()}
+  @spec get_collection_aliases(Client.t(), String.t(), Types.request_options()) :: Types.result(map())
+  def get_collection_aliases(%Client{} = client, collection_name, opts \\ []) do
+    Request.request(client, :get, "/collections/#{Request.segment(collection_name)}/aliases", opts)
+  end
+
+  @spec get_collection_aliases(String.t()) :: Types.result(map())
   def get_collection_aliases(collection_name) do
-    client()
-    |> Tesla.get("/collections/#{collection_name}/aliases")
-    |> parse_response()
+    with_default_client(&get_collection_aliases(&1, collection_name, []))
   end
 
   @doc """
   Get list of all existing collections aliases.
 
-  ## Example
+  ## Network example (not a doctest)
 
-      iex> Qdrant.Api.Http.Aliases.get_collections_aliases()
+      client = Qdrant.Client.new!()
+      Qdrant.Api.Http.Aliases.get_collections_aliases(client)
       {:ok, %{"result" => %{"aliases" => [...]}}}
 
   """
-  @spec get_collections_aliases() :: {:ok, map()} | {:error, any()}
-  def get_collections_aliases do
-    client()
-    |> Tesla.get("/collections/aliases")
-    |> parse_response()
+  @spec get_collections_aliases(Client.t(), Types.request_options()) :: Types.result(map())
+  def get_collections_aliases(%Client{} = client, opts \\ []) do
+    Request.request(client, :get, "/aliases", opts)
   end
 
-  # Private helpers
-  defp parse_response({:ok, %Tesla.Env{status: 200, body: body}}) do
-    {:ok, body}
-  end
+  @spec get_collections_aliases() :: Types.result(map())
+  def get_collections_aliases, do: with_default_client(&get_collections_aliases(&1, []))
 
-  defp parse_response({:error, reason}) do
-    {:error, reason}
-  end
-
-  defp parse_response({:ok, %Tesla.Env{} = env}) do
-    {:error, %{status: env.status, body: env.body}}
+  defp with_default_client(operation) do
+    with {:ok, opts} <- Config.client_options(),
+         {:ok, client} <- Client.new(opts) do
+      operation.(client)
+    end
   end
 end

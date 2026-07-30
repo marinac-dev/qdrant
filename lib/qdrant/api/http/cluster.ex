@@ -1,204 +1,195 @@
 defmodule Qdrant.Api.Http.Cluster do
   @moduledoc """
   Service distributed setup and cluster management.
+
+  Functions accepting a `Qdrant.Client` are the primary API. No-client forms
+  remain available for compatibility with application and environment configuration.
   """
 
-  alias Qdrant.Api.Http.Client
-
-  defp client, do: Client.client()
-
-  @type shard_params :: %{
-          shard_id: non_neg_integer(),
-          to_peer_id: non_neg_integer(),
-          from_peer_id: non_neg_integer()
-        }
-
-  @type move_shard :: %{move_shard: shard_params()}
-  @type replicate_shard :: %{replicate_shard: shard_params()}
-  @type abort_transfer :: %{abort_transfer: shard_params()}
-  @type drop_replica :: %{
-          shard_id: non_neg_integer(),
-          peer_id: non_neg_integer()
-        }
-
-  @type shard_operations :: move_shard() | replicate_shard() | abort_transfer() | drop_replica()
+  alias Qdrant.Api.Http.Request
+  alias Qdrant.{Client, Config, Types}
 
   @doc """
-  Create shard key for a collection.
+  Create a shard key for a collection.
 
-  ## Parameters
+  Options:
 
-  * `collection_name` **required** - Name of the collection to create shards for
-  * `body` **required** - Shard key configuration
-  * `timeout` - Optional timeout in seconds for operation commit
+  * `:timeout` - operation commit timeout in seconds
 
   ## Example
 
-      iex> body = %{shard_key: "city"}
-      iex> Qdrant.Api.Http.Cluster.create_shard_key("my_collection", body)
-      {:ok, %{"result" => true, "status" => "ok"}}
-
+      client = Qdrant.Client.new!(url: "http://localhost:6333")
+      body = %{shard_key: "city"}
+      Qdrant.Api.Http.Cluster.create_shard_key(client, "my_collection", body)
   """
-  @spec create_shard_key(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
-  def create_shard_key(collection_name, body, timeout \\ nil) do
-    path =
-      "/collections/#{collection_name}/shards"
-      |> Client.add_query_param("timeout", timeout)
+  @spec create_shard_key(Client.t(), String.t(), Types.request_body()) :: Types.result()
+  @spec create_shard_key(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  @spec create_shard_key(String.t(), Types.request_body()) :: Types.result()
+  @spec create_shard_key(String.t(), Types.request_body(), integer() | nil) :: Types.result()
+  def create_shard_key(collection_name, body),
+    do: with_compat_client(&create_shard_key(&1, collection_name, body))
 
-    client()
-    |> Tesla.put(path, body)
-    |> parse_response()
+  def create_shard_key(%Client{} = client, collection_name, body),
+    do: create_shard_key(client, collection_name, body, [])
+
+  def create_shard_key(collection_name, body, timeout),
+    do: with_compat_client(&create_shard_key(&1, collection_name, body, timeout: timeout))
+
+  def create_shard_key(%Client{} = client, collection_name, body, opts) do
+    path = "/collections/#{Request.segment(collection_name)}/shards"
+    Request.request(client, :put, path, query: [timeout: Keyword.get(opts, :timeout)], body: body)
   end
 
   @doc """
-  Delete shard key for a collection.
+  Delete a shard key for a collection.
 
-  ## Parameters
+  Options:
 
-  * `collection_name` **required** - Name of the collection
-  * `body` **required** - Shard key to delete
-  * `timeout` - Optional timeout in seconds for operation commit
+  * `:timeout` - operation commit timeout in seconds
 
   ## Example
 
-      iex> body = %{shard_key: "city"}
-      iex> Qdrant.Api.Http.Cluster.delete_shard_key("my_collection", body)
-      {:ok, %{"result" => true, "status" => "ok"}}
-
+      client = Qdrant.Client.new!(url: "http://localhost:6333")
+      body = %{shard_key: "city"}
+      Qdrant.Api.Http.Cluster.delete_shard_key(client, "my_collection", body)
   """
-  @spec delete_shard_key(String.t(), map(), integer() | nil) :: {:ok, map()} | {:error, any()}
-  def delete_shard_key(collection_name, body, timeout \\ nil) do
-    path =
-      "/collections/#{collection_name}/shards/delete"
-      |> Client.add_query_param("timeout", timeout)
+  @spec delete_shard_key(Client.t(), String.t(), Types.request_body()) :: Types.result()
+  @spec delete_shard_key(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
+  @spec delete_shard_key(String.t(), Types.request_body()) :: Types.result()
+  @spec delete_shard_key(String.t(), Types.request_body(), integer() | nil) :: Types.result()
+  def delete_shard_key(collection_name, body),
+    do: with_compat_client(&delete_shard_key(&1, collection_name, body))
 
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  def delete_shard_key(%Client{} = client, collection_name, body),
+    do: delete_shard_key(client, collection_name, body, [])
+
+  def delete_shard_key(collection_name, body, timeout),
+    do: with_compat_client(&delete_shard_key(&1, collection_name, body, timeout: timeout))
+
+  def delete_shard_key(%Client{} = client, collection_name, body, opts) do
+    path = "/collections/#{Request.segment(collection_name)}/shards/delete"
+    Request.request(client, :post, path, query: [timeout: Keyword.get(opts, :timeout)], body: body)
   end
 
   @doc """
   Get information about the current state and composition of the cluster.
 
-  [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/cluster/operation/cluster_status)
-
   ## Example
 
-      iex> Qdrant.Api.Http.Cluster.cluster_status()
-      {:ok, %{"result" => %{"status" => "disabled"}, "status" => "ok", "time" => 0}}
-
+      client = Qdrant.Client.new!(url: "http://localhost:6333")
+      Qdrant.Api.Http.Cluster.cluster_status(client)
   """
-  @spec cluster_status() :: {:ok, map()} | {:error, any()}
-  def cluster_status do
-    client()
-    |> Tesla.get("/cluster")
-    |> parse_response()
-  end
+  @spec cluster_status(Client.t()) :: Types.result()
+  @spec cluster_status() :: Types.result()
+  def cluster_status, do: with_compat_client(&cluster_status/1)
+  def cluster_status(%Client{} = client), do: Request.request(client, :get, "/cluster")
 
   @doc """
-  Tries to recover current peer Raft state.
-
-  [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/cluster/operation/recover_current_peer)
+  Tries to recover the current peer Raft state.
 
   ## Example
 
-      iex> Qdrant.Api.Http.Cluster.recover_current_peer()
-      {:ok, %{"result" => true, "status" => "ok", "time" => 0}}
-
+      client = Qdrant.Client.new!(url: "http://localhost:6333")
+      Qdrant.Api.Http.Cluster.recover_current_peer(client)
   """
-  @spec recover_current_peer() :: {:ok, map()} | {:error, any()}
-  def recover_current_peer do
-    client()
-    |> Tesla.post("/cluster/recover", %{})
-    |> parse_response()
-  end
+  @spec recover_current_peer(Client.t()) :: Types.result()
+  @spec recover_current_peer() :: Types.result()
+  def recover_current_peer, do: with_compat_client(&recover_current_peer/1)
+
+  def recover_current_peer(%Client{} = client),
+    do: Request.request(client, :post, "/cluster/recover", body: %{})
 
   @doc """
-  Remove peer from the cluster by its id.
+  Remove a peer from the cluster by its id.
 
-  Tries to remove peer from the cluster. Will return an error if peer has shards on it.
+  Options:
 
-  [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/cluster/operation/remove_peer)
-
-  ## Parameters
-
-  * `peer_id` **required** - Peer id
+  * `:force` - remove the peer even when it has shards or replicas
 
   ## Example
 
-      iex> Qdrant.Api.Http.Cluster.remove_peer(42)
-      {:ok, %{"result" => true, "status" => "ok", "time" => 0}}
-
+      client = Qdrant.Client.new!(url: "http://localhost:6333")
+      Qdrant.Api.Http.Cluster.remove_peer(client, 42, force: true)
   """
-  @spec remove_peer(integer() | String.t()) :: {:ok, map()} | {:error, any()}
-  def remove_peer(peer_id) do
-    client()
-    |> Tesla.delete("/cluster/peer/#{peer_id}")
-    |> parse_response()
+  @spec remove_peer(Client.t(), Types.extended_point_id()) :: Types.result()
+  @spec remove_peer(Client.t(), Types.extended_point_id(), Types.request_options()) :: Types.result()
+  @spec remove_peer(Types.extended_point_id()) :: Types.result()
+  @spec remove_peer(Types.extended_point_id(), boolean() | nil) :: Types.result()
+  def remove_peer(peer_id), do: with_compat_client(&remove_peer(&1, peer_id))
+  def remove_peer(%Client{} = client, peer_id), do: remove_peer(client, peer_id, [])
+
+  def remove_peer(peer_id, force),
+    do: with_compat_client(&remove_peer(&1, peer_id, force: force))
+
+  def remove_peer(%Client{} = client, peer_id, opts) do
+    path = "/cluster/peer/#{Request.segment(peer_id)}"
+    Request.request(client, :delete, path, query: [force: Keyword.get(opts, :force)])
   end
 
   @doc """
   Get cluster information for a collection.
 
-  [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/cluster/operation/collection_cluster_info)
-
-  ## Parameters
-
-  * `collection_name` **required** - Collection name
-
   ## Example
 
-      iex> Qdrant.Api.Http.Cluster.collection_cluster_info("my_collection")
-      {:ok, %{"result" => %{...}, "status" => "ok"}}
-
+      client = Qdrant.Client.new!(url: "http://localhost:6333")
+      Qdrant.Api.Http.Cluster.collection_cluster_info(client, "my_collection")
   """
-  @spec collection_cluster_info(String.t()) :: {:ok, map()} | {:error, any()}
-  def collection_cluster_info(collection_name) do
-    client()
-    |> Tesla.get("/collections/#{collection_name}/cluster")
-    |> parse_response()
+  @spec collection_cluster_info(Client.t(), String.t()) :: Types.result()
+  @spec collection_cluster_info(String.t()) :: Types.result()
+  def collection_cluster_info(collection_name),
+    do: with_compat_client(&collection_cluster_info(&1, collection_name))
+
+  def collection_cluster_info(%Client{} = client, collection_name) do
+    path = "/collections/#{Request.segment(collection_name)}/cluster"
+    Request.request(client, :get, path)
   end
 
   @doc """
   Update collection cluster setup.
 
-  [See more on qdrant](https://qdrant.github.io/qdrant/redoc/index.html#tag/cluster/operation/update_collection_cluster)
+  Options:
 
-  ## Parameters
-
-  * `collection_name` **required** - Collection name
-  * `body` **required** - Cluster operations (move_shard, replicate_shard, abort_transfer, or drop_replica)
-  * `timeout` - Optional timeout in seconds for operation commit
+  * `:timeout` - operation commit timeout in seconds
 
   ## Example
 
-      iex> body = %{move_shard: %{shard_id: 1, to_peer_id: 2, from_peer_id: 1}}
-      iex> Qdrant.Api.Http.Cluster.update_collection_cluster("my_collection", body)
-      {:ok, %{"result" => true, "status" => "ok"}}
-
+      client = Qdrant.Client.new!(url: "http://localhost:6333")
+      body = %{move_shard: %{shard_id: 1, to_peer_id: 2, from_peer_id: 1}}
+      Qdrant.Api.Http.Cluster.update_collection_cluster(client, "my_collection", body)
   """
-  @spec update_collection_cluster(String.t(), shard_operations(), integer() | nil) ::
-          {:ok, map()} | {:error, any()}
-  def update_collection_cluster(collection_name, body, timeout \\ nil) do
-    path =
-      "/collections/#{collection_name}/cluster"
-      |> Client.add_query_param("timeout", timeout)
+  @spec update_collection_cluster(Client.t(), String.t(), Types.request_body()) :: Types.result()
+  @spec update_collection_cluster(
+          Client.t(),
+          String.t(),
+          Types.request_body(),
+          Types.request_options()
+        ) :: Types.result()
+  @spec update_collection_cluster(String.t(), Types.request_body()) :: Types.result()
+  @spec update_collection_cluster(String.t(), Types.request_body(), integer() | nil) :: Types.result()
+  def update_collection_cluster(collection_name, body),
+    do: with_compat_client(&update_collection_cluster(&1, collection_name, body))
 
-    client()
-    |> Tesla.post(path, body)
-    |> parse_response()
+  def update_collection_cluster(%Client{} = client, collection_name, body),
+    do: update_collection_cluster(client, collection_name, body, [])
+
+  def update_collection_cluster(collection_name, body, timeout),
+    do: with_compat_client(&update_collection_cluster(&1, collection_name, body, timeout: timeout))
+
+  def update_collection_cluster(%Client{} = client, collection_name, body, opts) do
+    path = "/collections/#{Request.segment(collection_name)}/cluster"
+    Request.request(client, :post, path, query: [timeout: Keyword.get(opts, :timeout)], body: body)
   end
 
-  # Private helpers
-  defp parse_response({:ok, %Tesla.Env{status: 200, body: body}}) do
-    {:ok, body}
+  defp with_compat_client(callback) do
+    with {:ok, opts} <- Config.client_options(),
+         {:ok, client} <- Client.new(default_insecure_api_key_option(opts)) do
+      callback.(client)
+    end
   end
 
-  defp parse_response({:error, reason}) do
-    {:error, reason}
-  end
-
-  defp parse_response({:ok, %Tesla.Env{} = env}) do
-    {:error, %{status: env.status, body: env.body}}
+  defp default_insecure_api_key_option(opts) do
+    if is_nil(opts[:allow_insecure_api_key]),
+      do: Keyword.put(opts, :allow_insecure_api_key, false),
+      else: opts
   end
 end
