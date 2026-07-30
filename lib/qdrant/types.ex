@@ -6,9 +6,24 @@ defmodule Qdrant.Types do
   `map()` in endpoint APIs rather than by incomplete closed maps.
   """
 
+  @type result :: result(term())
+  @type result(response) :: {:ok, response} | {:error, Qdrant.Error.t()}
+
+  @type request_body :: map()
+  @type request_options :: keyword()
+  @type batch_request :: %{required(:searches) => list(request_body())}
+
+  @type json_value :: String.t() | map() | list() | boolean() | number() | nil
+  @type health_body :: json_value()
+
+  @type request_option ::
+          {:query, keyword() | map()}
+          | {:body, term()}
+          | {:response, :auto | :json | :text | :binary}
+
   @type extended_point_id :: non_neg_integer() | String.t()
   @type point_ids :: list(extended_point_id())
-  @type point_id_list :: list(extended_point_id())
+  @type point_id_list :: point_ids()
 
   @type consistency :: non_neg_integer() | :majority | :quorum | :all
   @type ordering :: :weak | :medium | :strong
