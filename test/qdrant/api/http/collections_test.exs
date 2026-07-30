@@ -81,6 +81,6 @@ defmodule Qdrant.Api.Http.CollectionsTest do
 
   defp assert_json_request(env, body) do
     assert {"content-type", "application/json"} in env.headers
-    assert Jason.decode!(env.body) == Jason.decode!(Jason.encode!(body))
+    assert JSON.decode!(env.body) == JSON.decode!(JSON.encode!(body))
   end
 end

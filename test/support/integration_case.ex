@@ -5,7 +5,7 @@ defmodule Qdrant.IntegrationCase do
   import ExUnit.Callbacks, only: [on_exit: 1]
 
   @fixture_path Path.expand("../integration/fixtures/food_search.min.json", __DIR__)
-  @fixture @fixture_path |> File.read!() |> Jason.decode!()
+  @fixture @fixture_path |> File.read!() |> JSON.decode!()
   @embedding_dimensions get_in(@fixture, ["model", "dimensions"])
   @distance get_in(@fixture, ["model", "distance"])
   @fixture_points Map.new(@fixture["points"], &{&1["id"], &1})

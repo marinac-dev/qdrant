@@ -58,7 +58,7 @@ defmodule Qdrant.Api.Http.ServiceTest do
     assert_receive {:request, env}
     assert env.method == :post
     assert env.url == "https://service.test/locks"
-    assert Jason.decode!(env.body) == %{"error_message" => "maintenance", "write" => true}
+    assert JSON.decode!(env.body) == %{"error_message" => "maintenance", "write" => true}
     assert_header(env, "content-type", "application/json")
   end
 
@@ -67,7 +67,7 @@ defmodule Qdrant.Api.Http.ServiceTest do
       {&Service.healthz/1, "healthz check passed", [{"content-type", "text/plain"}], "healthz check passed",
        "/healthz"},
       {&Service.livez/1, "", [{"content-type", "text/plain"}], "", "/livez"},
-      {&Service.readyz/1, Jason.encode!(%{"ready" => true}), [{"content-type", "application/json"}], %{"ready" => true},
+      {&Service.readyz/1, JSON.encode!(%{"ready" => true}), [{"content-type", "application/json"}], %{"ready" => true},
        "/readyz"}
     ]
 

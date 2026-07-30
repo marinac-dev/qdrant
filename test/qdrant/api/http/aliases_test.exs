@@ -11,7 +11,7 @@ defmodule Qdrant.Api.Http.AliasesTest do
     assert {:ok, %{"result" => true}} = Aliases.update_aliases(client, body, timeout: nil)
     update_env = assert_request(:post, "https://example.test/collections/aliases")
     assert {"content-type", "application/json"} in update_env.headers
-    assert Jason.decode!(update_env.body) == %{"actions" => [%{"delete_alias" => %{"alias_name" => "old"}}]}
+    assert JSON.decode!(update_env.body) == %{"actions" => [%{"delete_alias" => %{"alias_name" => "old"}}]}
 
     assert {:ok, %{"result" => true}} = Aliases.update_aliases(client, body, timeout: 5)
     assert_request(:post, "https://example.test/collections/aliases?timeout=5")

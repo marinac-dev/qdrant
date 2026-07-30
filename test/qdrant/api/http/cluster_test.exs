@@ -18,7 +18,7 @@ defmodule Qdrant.Api.Http.ClusterTest do
       assert_receive {:request, env}
       assert env.method == method
       assert env.url == "https://cluster.test/collections/cities%2Feu%20%3F%23#{suffix}?timeout=0"
-      assert Jason.decode!(env.body) == %{"shard_key" => "north"}
+      assert JSON.decode!(env.body) == %{"shard_key" => "north"}
       assert_header(env, "api-key", "secret")
       assert_header(env, "content-type", "application/json")
     end
@@ -40,7 +40,7 @@ defmodule Qdrant.Api.Http.ClusterTest do
       assert_header(env, "api-key", "secret")
 
       if method == :post do
-        assert Jason.decode!(env.body) == %{}
+        assert JSON.decode!(env.body) == %{}
         assert_header(env, "content-type", "application/json")
       else
         assert env.body == nil
@@ -59,7 +59,7 @@ defmodule Qdrant.Api.Http.ClusterTest do
     assert env.method == :post
     assert env.url == "https://cluster.test/collections/cities%2F%25/cluster?timeout=12"
 
-    assert Jason.decode!(env.body) == %{
+    assert JSON.decode!(env.body) == %{
              "drop_replica" => %{"peer_id" => 2, "shard_id" => 1}
            }
   end

@@ -159,7 +159,7 @@ defmodule Qdrant.Api.Http.Request do
   defp decode_json(body) when body in ["", nil], do: {:ok, body}
 
   defp decode_json(body) when is_binary(body) do
-    case Jason.decode(body) do
+    case JSON.decode(body) do
       {:ok, decoded} -> {:ok, decoded}
       {:error, reason} -> {:error, reason, body}
     end
@@ -223,7 +223,7 @@ defmodule Qdrant.Api.Http.Request do
   end
 
   defp decode_or_transport({Tesla.Middleware.JSON, :decode, _reason}), do: :decode
-  defp decode_or_transport({:error, %Jason.DecodeError{}}), do: :decode
-  defp decode_or_transport(%Jason.DecodeError{}), do: :decode
+  defp decode_or_transport({:error, %JSON.DecodeError{}}), do: :decode
+  defp decode_or_transport(%JSON.DecodeError{}), do: :decode
   defp decode_or_transport(_), do: :transport
 end

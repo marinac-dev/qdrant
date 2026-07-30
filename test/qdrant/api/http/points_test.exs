@@ -93,7 +93,7 @@ defmodule Qdrant.Api.Http.PointsTest do
       assert decode_query(uri.query) == expected_query
 
       if expected_body do
-        assert Jason.decode!(env.body) == stringify_keys(expected_body)
+        assert JSON.decode!(env.body) == stringify_keys(expected_body)
         assert {"content-type", "application/json"} in env.headers
       else
         assert env.body in [nil, ""]
@@ -107,7 +107,7 @@ defmodule Qdrant.Api.Http.PointsTest do
 
     assert {:ok, _} = Points.clear_payload(client, "places", selector)
     assert_receive {:request, env}
-    assert Jason.decode!(env.body) == stringify_keys(selector)
+    assert JSON.decode!(env.body) == stringify_keys(selector)
   end
 
   test "no-client positional wrappers build a configured client and preserve options" do
@@ -137,7 +137,7 @@ defmodule Qdrant.Api.Http.PointsTest do
          env
          | status: 422,
            headers: [{"content-type", "application/json"}, {"x-request-id", "points-1"}],
-           body: Jason.encode!(%{status: %{error: "bad request"}})
+           body: JSON.encode!(%{status: %{error: "bad request"}})
        }}
     end
 
@@ -167,7 +167,7 @@ defmodule Qdrant.Api.Http.PointsTest do
          env
          | status: 200,
            headers: [{"content-type", "application/json"}],
-           body: Jason.encode!(%{result: true})
+           body: JSON.encode!(%{result: true})
        }}
     end
   end
@@ -177,8 +177,8 @@ defmodule Qdrant.Api.Http.PointsTest do
 
   defp stringify_keys(value) do
     value
-    |> Jason.encode!()
-    |> Jason.decode!()
+    |> JSON.encode!()
+    |> JSON.decode!()
   end
 
   defp preserve_application_env(keys) do

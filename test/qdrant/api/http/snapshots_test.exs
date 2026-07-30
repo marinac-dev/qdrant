@@ -101,7 +101,7 @@ defmodule Qdrant.Api.Http.SnapshotsTest do
           if String.contains?(env.url, "download.snapshot") do
             "snapshot-bytes"
           else
-            Jason.encode!(%{"result" => true})
+            JSON.encode!(%{"result" => true})
           end
 
         content_type = if body == "snapshot-bytes", do: "application/octet-stream", else: "application/json"
@@ -259,7 +259,7 @@ defmodule Qdrant.Api.Http.SnapshotsTest do
        env
        | status: 200,
          headers: [{"content-type", "application/json"}],
-         body: Jason.encode!(%{"result" => true})
+         body: JSON.encode!(%{"result" => true})
      }}
   end
 

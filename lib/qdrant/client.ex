@@ -129,7 +129,7 @@ defmodule Qdrant.Client do
     [
       {Tesla.Middleware.BaseUrl, base_url},
       {Tesla.Middleware.Headers, headers},
-      {Tesla.Middleware.JSON, engine: Jason, decode: &__MODULE__.passthrough_json/1}
+      {Tesla.Middleware.JSON, engine: JSON, decode: &__MODULE__.passthrough_json/1}
     ]
   end
 

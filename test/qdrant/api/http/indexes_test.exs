@@ -13,7 +13,7 @@ defmodule Qdrant.Api.Http.IndexesTest do
 
     env = assert_request(:put, "https://example.test/collections/team%2Fblue/index?wait=false")
     assert {"content-type", "application/json"} in env.headers
-    assert Jason.decode!(env.body) == %{"field_name" => "meta/category", "field_schema" => "keyword"}
+    assert JSON.decode!(env.body) == %{"field_name" => "meta/category", "field_schema" => "keyword"}
   end
 
   test "deletes an index with collection and field names encoded as individual segments" do

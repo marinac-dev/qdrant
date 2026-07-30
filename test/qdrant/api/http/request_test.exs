@@ -65,7 +65,7 @@ defmodule Qdrant.Api.Http.RequestTest do
            env
            | status: status,
              headers: [{"content-type", "application/json"}],
-             body: Jason.encode!(%{status: status})
+             body: JSON.encode!(%{status: status})
          }}
       end
 
@@ -78,7 +78,7 @@ defmodule Qdrant.Api.Http.RequestTest do
 
   test "preserves JSON, text, binary, and empty successful bodies" do
     cases = [
-      {[{"content-type", "application/json"}], Jason.encode!(%{result: true}), %{"result" => true}},
+      {[{"content-type", "application/json"}], JSON.encode!(%{result: true}), %{"result" => true}},
       {[{"content-type", "text/plain"}], "metrics 1\n", "metrics 1\n"},
       {[{"content-type", "application/octet-stream"}], <<0, 1, 2>>, <<0, 1, 2>>},
       {[], "", ""}
