@@ -43,3 +43,4 @@ qdrant_storage/
 # Ignore .env file
 .env
 .envrc
+test/integration/fixtures/food_search.json

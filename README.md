@@ -1,208 +1,232 @@
 # Qdrant Elixir Client
 
-## ⚠️ This library is under active development and is subject to change. Please use the latest version from GitHub ⚠️
+This library is under active development and subject to change. Use the latest
+release for production applications.
 
-An Elixir client for the Qdrant vector similarity search engine. This library provides a convenient way to interact with the Qdrant API, offering functionality to create collections, insert vectors, search, delete data, and more.
+An Elixir REST client targeting Qdrant 1.15.x. Successful calls preserve the
+complete Qdrant response envelope as `{:ok, body}`. Failures return
+`{:error, %Qdrant.Error{}}` with HTTP and response context where available.
+
+gRPC is unsupported.
 
 [![Hex.pm](https://img.shields.io/hexpm/v/qdrant.svg)](https://hex.pm/packages/qdrant) [![Hex.pm](https://img.shields.io/hexpm/dt/qdrant.svg)](https://hex.pm/packages/qdrant) [![Hex.pm](https://img.shields.io/hexpm/l/qdrant.svg)](https://hex.pm/packages/qdrant)
 
 ## Installation
 
-It's [available in Hex](https://hexdocs.pm/qdrant/readme.html), the package can be installed
-by adding `qdrant` to your list of dependencies in `mix.exs`:
+The package is [available on Hex](https://hex.pm/packages/qdrant), with
+documentation on [HexDocs](https://hexdocs.pm/qdrant/readme.html). Add it to
+`mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:qdrant, "~> 0.8.0"}
-    # Or use the latest version from GitHub | Recommended during development phase
-    {:qdrant, github: "marinac-dev/qdrant.git", branch: "master"},
+    {:qdrant, "~> 0.1.0"}
   ]
 end
 ```
 
-## Configuration
+## Client Setup
 
-Configure the Qdrant client in your `config/config.exs`:
-
-### Local/Docker Setup (Default)
-
-```elixir
-config :qdrant,
-  interface: "rest", # gRPC not yet supported
-  # Option 1: Use full URL (recommended)
-  url: System.get_env("QDRANT_URL") || "http://localhost:6333",
-  # Option 2: Use separate URL and port (for backward compatibility)
-  # database_url: System.get_env("QDRANT_DATABASE_URL") || "http://localhost",
-  # port: 6333,
-  require_api_key: false  # Default: false for local/docker instances
-```
-
-### Qdrant Cloud Setup
+Construct an explicit client for application code. A client retains its own
+URL, credentials, adapter, and timeout settings, so one application can safely
+connect to multiple Qdrant clusters.
 
 ```elixir
-config :qdrant,
-  interface: "rest",
-  url: System.get_env("QDRANT_URL"),  # e.g., "https://your-cluster.cloud.qdrant.io"
-  require_api_key: true,  # Required for Qdrant Cloud (auto-detected if URL contains cloud.qdrant.io)
-  api_key: System.get_env("QDRANT_API_KEY")  # Required when require_api_key is true
+client =
+  Qdrant.Client.new!(
+    url: "https://cluster-id.cloud.qdrant.io:6333",
+    api_key: System.fetch_env!("QDRANT_API_KEY")
+  )
 ```
 
-**Note:** The client automatically detects Qdrant Cloud instances and requires an API key when:
-- The URL contains `cloud.qdrant.io`, or
-- The URL uses HTTPS and is not localhost
+The production adapter is `Tesla.Adapter.Finch`, backed by the supervised
+`Qdrant.Finch` pool. Defaults are a 30,000 ms receive timeout, 5,000 ms pool
+timeout, and a 50 MiB maximum in-memory response.
 
-You can also explicitly set `require_api_key: true` to force API key authentication.
+Client options:
 
-Alternatively, you can set these via environment variables:
-- `QDRANT_URL` - Full Qdrant server URL (e.g., `http://localhost:6333`) - takes priority if set
-- `QDRANT_DATABASE_URL` - Qdrant server URL without port (default: `http://localhost`)
-- `QDRANT_PORT` - Qdrant server port (default: `6333`)
-- `QDRANT_REQUIRE_API_KEY` - Whether API key is required (default: `false`, auto-detected for Qdrant Cloud)
-- `QDRANT_API_KEY` - API key for authentication (required if `require_api_key` is true)
+| Option | Default | Purpose |
+|---|---|---|
+| `:interface` | `:rest` | Protocol interface; gRPC is reserved for a future release |
+| `:url` | `http://localhost:6333` | Full Qdrant base URL |
+| `:api_key` | `nil` | Value for the `api-key` header |
+| `:require_api_key` | Cloud-host detection | Reject a missing required key |
+| `:allow_insecure_api_key` | `false` | Permit a key over remote plain HTTP |
+| `:adapter` | `Tesla.Adapter.Finch` | Per-client Tesla adapter |
+| `:adapter_opts` | Finch timeout/pool defaults | Adapter configuration |
+| `:base_path` | `""` | Optional path below the base URL |
+| `:max_response_bytes` | 50 MiB | Limit for in-memory responses |
 
-**Configuration priority:** Application config takes priority over environment variables.
+API keys are rejected over plain HTTP to non-loopback hosts unless
+`allow_insecure_api_key: true` is explicit. Hosts equal to `cloud.qdrant.io` or
+ending in `.cloud.qdrant.io` require a key by default.
+
+## Features
+
+The client provides endpoint modules for:
+
+* Collections and payload indexes
+* Points, search, recommendation, discovery, and query operations
+* Collection aliases
+* Collection, full, and shard snapshots
+* Cluster and service operations, including health checks and metrics
+
+For the complete public API, see the [module documentation](https://hexdocs.pm/qdrant).
 
 ## Usage
 
-The Qdrant Elixir Client provides a simple interface for interacting with the Qdrant API.
-
-### Collections
+New calls put the client first and use one final keyword options argument.
 
 ```elixir
-collection_name = "my-collection"
+collection = "articles"
 
-# Create a new collection
-# The vectors are 1536-dimensional (for OpenAI embeddings) and use the Cosine distance metric
-{:ok, _} = Qdrant.create_collection(collection_name, %{
-  vectors: %{
-    size: 1536,
-    distance: "Cosine"
-  }
-})
+{:ok, _} =
+  Qdrant.create_collection(client, collection, %{
+    vectors: %{size: 3, distance: "Cosine"}
+  })
 
-# List all collections
-{:ok, collections} = Qdrant.list_collections()
+{:ok, _} =
+  Qdrant.upsert_points(
+    client,
+    collection,
+    %{points: [%{id: 1, vector: [0.1, 0.2, 0.3], payload: %{title: "First"}}]},
+    wait: true,
+    ordering: :strong
+  )
 
-# Get collection info
-{:ok, info} = Qdrant.collection_info(collection_name)
+{:ok, response} =
+  Qdrant.query_points(
+    client,
+    collection,
+    %{query: [0.1, 0.2, 0.3], limit: 10},
+    consistency: :majority,
+    timeout: 10
+  )
 
-# Check if collection exists
-{:ok, %{"result" => %{"exists" => true}}} = Qdrant.collection_exists(collection_name)
-
-# Update collection parameters
-{:ok, _} = Qdrant.update_collection(collection_name, %{
-  optimizers_config: %{
-    deleted_threshold: 0.2
-  }
-})
-
-# Delete a collection
-{:ok, _} = Qdrant.delete_collection(collection_name)
+points = response["result"]["points"]
 ```
 
-### Points
+Qdrant also accepts `%{query: %{nearest: vector}, limit: 10}`. The `query` key
+may be omitted when Qdrant permits ID-ordered retrieval.
+
+Batch search, recommendation, discovery, and query calls require the wire
+wrapper `%{searches: [request, ...]}`. Payload clearing requires a selector such
+as `%{points: [1, 2]}` or `%{filter: filter}`.
+
+Use the download-to-file functions for large snapshots:
 
 ```elixir
-collection_name = "my-collection"
-
-# Create embeddings for some text
-vector1 = [0.1, 0.2, 0.3] # Your embedding vector
-vector2 = [0.4, 0.5, 0.6]
-
-# Insert vectors with batch
-{:ok, _} = Qdrant.upsert_point(collection_name, %{
-  batch: %{
-    ids: [1, 2],
-    vectors: [vector1, vector2]
-  }
-})
-
-# Or insert points one by one
-{:ok, _} = Qdrant.upsert_point(collection_name, %{
-  points: [
-    %{id: 1, vector: vector1, payload: %{text: "Hello"}},
-    %{id: 2, vector: vector2, payload: %{text: "World"}}
-  ]
-})
-
-# Search for similar vectors
-query_vector = [0.15, 0.25, 0.35]
-{:ok, results} = Qdrant.search_points(collection_name, %{
-  vector: query_vector,
-  limit: 3,
-  with_payload: true
-})
-
-# Get specific points by ID
-{:ok, points} = Qdrant.get_points(collection_name, %{
-  ids: [1, 2],
-  with_payload: true,
-  with_vector: true
-})
-
-# Get a single point
-{:ok, point} = Qdrant.get_point(collection_name, 1)
-
-# Delete points
-{:ok, _} = Qdrant.delete_points(collection_name, %{
-  points: [1, 2]
-})
+{:ok, path} =
+  Qdrant.download_snapshot_to_file(
+    client,
+    "articles",
+    "snapshot.snapshot",
+    "/var/backups/articles.snapshot"
+  )
 ```
 
-### Advanced Features
-
-The library supports many advanced features including:
-
-- **Aliases**: Manage collection aliases
-- **Indexes**: Create and manage field indexes for faster filtering
-- **Snapshots**: Backup and restore collections
-- **Cluster operations**: Manage distributed setups
-- **Service endpoints**: Health checks, telemetry, metrics
-
-For full API documentation, see the [module documentation](https://hexdocs.pm/qdrant).
+File-path snapshot uploads are streamed with
+`Qdrant.recover_from_uploaded_snapshot_file/4`. Existing binary upload and
+in-memory download forms remain available, with the configured response limit.
 
 ## Direct HTTP Module Access
 
-You can also access the HTTP modules directly for more control:
+The domain-specific HTTP modules remain available for callers that need direct
+access. Client-first calls are preferred:
 
 ```elixir
-# Collections
-alias Qdrant.Api.Http.Collections
-{:ok, collections} = Collections.list_collections()
+client = Qdrant.Client.new!()
 
-# Points
-alias Qdrant.Api.Http.Points
-{:ok, results} = Points.search_points("my-collection", %{vector: [0.1, 0.2], limit: 5})
+{:ok, _} = Qdrant.Api.Http.Collections.list_collections(client)
 
-# Service
-alias Qdrant.Api.Http.Service
-{:ok, info} = Service.root() # Get server version info
-{:ok, health} = Service.healthz() # Health check
+{:ok, _} =
+  Qdrant.Api.Http.Points.search_points(
+    client,
+    "articles",
+    %{vector: [0.1, 0.2, 0.3], limit: 3}
+  )
+
+{:ok, _} = Qdrant.Api.Http.Service.healthz(client)
 ```
 
 ## Architecture
 
-The client uses the modern Tesla HTTP client pattern with middleware for:
-- Base URL configuration
-- API key authentication
-- JSON encoding/decoding
+Requests use Tesla with `Tesla.Adapter.Finch` in production. The supervised
+`Qdrant.Finch` pool provides connection pooling and transport timeouts, while
+shared request handling encodes paths and queries, parses responses, and
+returns consistent `Qdrant.Error` values.
 
-All modules follow consistent patterns and provide full coverage of the Qdrant REST API.
+## Compatibility Configuration
+
+No-client `Qdrant.*` functions remain available during the compatibility
+period. They construct `Qdrant.default_client/0` for each call. Explicit clients
+are preferred.
+
+The compatibility URL precedence is exact:
+
+1. Application `config :qdrant, url: ...`
+2. Application `:database_url` plus application `:port`
+3. `QDRANT_URL`
+4. `QDRANT_DATABASE_URL` plus `QDRANT_PORT`
+5. `http://localhost:6333`
+
+Application `:api_key`, `:require_api_key`, and `:allow_insecure_api_key` take
+precedence over `QDRANT_API_KEY`, `QDRANT_REQUIRE_API_KEY`, and
+`QDRANT_ALLOW_INSECURE_API_KEY`. Environment booleans must be `true` or `false`,
+and ports must be integers from 1 through 65535.
+
+Supported environment variables include:
+
+* `QDRANT_URL` - Full Qdrant server URL
+* `QDRANT_DATABASE_URL` - Qdrant server URL without a port
+* `QDRANT_PORT` - Qdrant server port
+* `QDRANT_REQUIRE_API_KEY` - Whether an API key is required
+* `QDRANT_API_KEY` - API key for authentication
+* `QDRANT_ALLOW_INSECURE_API_KEY` - Allow API keys over remote plain HTTP
+
+```elixir
+config :qdrant,
+  interface: :rest,
+  url: "http://localhost:6333",
+  require_api_key: false
+```
+
+The older `collection_info`, `get_collection_details`, and `upsert_point`
+names are deprecated. Use `get_collection` and `upsert_points`.
+
+## Development
+
+```bash
+mix deps.get
+mix format --check-formatted
+mix compile --warnings-as-errors
+mix test
+mix dialyzer
+mix docs
+mix hex.build
+```
+
+Integration tests are opt-in and expect Qdrant 1.15.x at `QDRANT_URL`:
+
+```bash
+QDRANT_INTEGRATION=true QDRANT_URL=http://127.0.0.1:6333 mix test --only integration
+```
 
 ## Contributing
 
-- Fork the repository
-- Create a branch for your changes
-- Make your changes
-- Run `mix format` to format your code
-- Run `mix compile` to ensure everything compiles
-- Submit a pull request
+* Fork the repository
+* Create a branch for your changes
+* Run `mix format` and `mix test`
+* Submit a pull request
 
-## Change Log
+## Changelog
 
-Generate change log with `git-chglog -o CHANGELOG.md`
+See [CHANGELOG.md](CHANGELOG.md). Generate the changelog with:
+
+```bash
+git-chglog -o CHANGELOG.md
+```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+MIT. See [LICENSE](LICENSE).
