@@ -1,3 +1,30 @@
+<a name="unreleased"></a>
+## Unreleased
+
+### Features
+
+* **qdrant-client:** Added explicit, independently configured `Qdrant.Client`
+  values.
+* **qdrant:** Added a supervised Finch pool, configurable transport timeouts,
+  bounded in-memory responses, and streamed snapshot file transfers.
+* **qdrant-error:** Added stable `Qdrant.Error` values with response and request
+  metadata.
+
+### Bug Fixes
+
+* **qdrant-api-http:** Corrected Qdrant 1.15 REST paths, query options, batch
+  wrappers, payload selectors, multipart snapshot fields, and service response
+  handling.
+* **qdrant:** Made REST the only supported interface and rejected gRPC
+  configuration.
+* **qdrant:** Preserved complete Qdrant response envelopes across endpoint
+  families.
+
+### Deprecations
+
+* **qdrant:** Deprecated `collection_info` and `get_collection_details` in
+  favor of `get_collection`.
+* **qdrant:** Deprecated `upsert_point` in favor of `upsert_points`.
 
 <a name="v0.0.7"></a>
 ## [v0.0.7](https://github.com/marinac-dev/qdrant/compare/v0.0.6...v0.0.7)
@@ -128,4 +155,3 @@
 ### Tidbit
 
 * Update formater and .gitignore
-
