@@ -4,8 +4,8 @@ defmodule Qdrant.MixProject do
   def project do
     [
       app: :qdrant,
-      version: "0.1.15",
-      elixir: "~> 1.18",
+      version: "0.1.18",
+      elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
@@ -16,7 +16,7 @@ defmodule Qdrant.MixProject do
       source_url: "https://github.com/marinac-dev/qdrant",
       docs: [
         main: "readme",
-        source_ref: "v0.1.15",
+        source_ref: "v0.1.18",
         extras: ["README.md", "CHANGELOG.md", "LICENSE"]
       ]
     ]
@@ -33,11 +33,11 @@ defmodule Qdrant.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
-      {:tesla, "~> 1.20"},
-      {:finch, "~> 0.23"},
       {:excoveralls, "~> 0.18.5", only: :test},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:finch, "~> 0.23"},
+      {:tesla, "~> 1.21"}
     ]
   end
 

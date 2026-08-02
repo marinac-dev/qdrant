@@ -9,9 +9,9 @@ defmodule Qdrant.Api.Http.IndexesTest do
     body = %{field_name: "meta/category", field_schema: "keyword"}
 
     assert {:ok, %{"result" => true}} =
-             Indexes.create_field_index(client, "team/blue", body, wait: false, ordering: nil)
+             Indexes.create_field_index(client, "team/blue", body, wait: false, ordering: nil, timeout: 3)
 
-    env = assert_request(:put, "https://example.test/collections/team%2Fblue/index?wait=false")
+    env = assert_request(:put, "https://example.test/collections/team%2Fblue/index?wait=false&timeout=3")
     assert {"content-type", "application/json"} in env.headers
     assert JSON.decode!(env.body) == %{"field_name" => "meta/category", "field_schema" => "keyword"}
   end
@@ -20,11 +20,11 @@ defmodule Qdrant.Api.Http.IndexesTest do
     client = client(self())
 
     assert {:ok, %{"result" => true}} =
-             Indexes.delete_field_index(client, "team/blue", "meta/category?", wait: nil, ordering: :strong)
+             Indexes.delete_field_index(client, "team/blue", "meta/category?", wait: nil, ordering: :strong, timeout: 0)
 
     assert_request(
       :delete,
-      "https://example.test/collections/team%2Fblue/index/meta%2Fcategory%3F?ordering=strong"
+      "https://example.test/collections/team%2Fblue/index/meta%2Fcategory%3F?ordering=strong&timeout=0"
     )
   end
 

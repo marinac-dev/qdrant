@@ -153,6 +153,22 @@ defmodule Qdrant.Api.Http.SnapshotsTest do
              Snapshots.get_full_snapshot(client, "full.snapshot")
   end
 
+  test "streams the current shard snapshot route" do
+    test_pid = self()
+
+    client =
+      client(fn env ->
+        send(test_pid, {:stream, env})
+
+        {:ok, %{env | status: 200, headers: [{"content-type", "application/octet-stream"}], body: <<1, 2, 3>>}}
+      end)
+
+    assert {:ok, <<1, 2, 3>>} = Snapshots.stream_shard_snapshot(client, "collection/name", 7)
+    assert_receive {:stream, env}
+    assert env.method == :get
+    assert env.url == "https://example.test/collections/collection%2Fname/shards/7/snapshot"
+  end
+
   test "download-to-file consumes enumerable response bodies" do
     destination = temp_path("download.snapshot")
     on_exit(fn -> File.rm(destination) end)

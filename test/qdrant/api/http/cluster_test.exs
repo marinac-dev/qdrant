@@ -77,6 +77,24 @@ defmodule Qdrant.Api.Http.ClusterTest do
     assert nil_env.url == "https://cluster.test/cluster/peer/peer%2Ftwo"
   end
 
+  test "lists shard keys and collects cluster telemetry" do
+    client = client()
+
+    assert {:ok, %{"result" => true}} = Cluster.list_shard_keys(client, "cities/eu")
+    assert_receive {:request, shard_keys_env}
+    assert shard_keys_env.method == :get
+    assert shard_keys_env.url == "https://cluster.test/collections/cities%2Feu/shards"
+
+    client = client()
+
+    assert {:ok, %{"result" => true}} =
+             Cluster.cluster_telemetry(client, details_level: 0, timeout: 0)
+
+    assert_receive {:request, telemetry_env}
+    assert telemetry_env.method == :get
+    assert telemetry_env.url == "https://cluster.test/cluster/telemetry?details_level=0&timeout=0"
+  end
+
   test "returns structured errors from the shared request layer" do
     client = client(%{"status" => "conflict"}, 409, [{"x-request-id", "cluster-1"}])
 

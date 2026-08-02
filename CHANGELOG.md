@@ -1,6 +1,30 @@
 <a name="unreleased"></a>
 ## Unreleased
 
+<a name="v0.1.18"></a>
+## [v0.1.18](https://github.com/marinac-dev/qdrant/compare/v0.1.15...v0.1.18)
+
+> 2026-08-02
+
+### Features
+
+* **qdrant:** Added Qdrant 1.18 named-vector, optimization, shard-key,
+  cluster-telemetry, and current-shard-snapshot operations.
+* **qdrant:** Added the Qdrant 1.18 timeout and per-collection query options.
+* **qdrant:** Updated the supported toolchain to Elixir 1.20.2 on OTP 29 and
+  upgraded Tesla to 1.21.
+
+### Bug Fixes
+
+* **qdrant-api-http:** Corrected Qdrant 1.18 REST paths, query options, batch
+  wrappers, payload selectors, multipart snapshot fields, and service response
+  handling.
+
+<a name="v0.1.15"></a>
+## [v0.1.15](https://github.com/marinac-dev/qdrant/compare/v0.0.8...v0.1.15)
+
+> 2026-08-01
+
 ### Features
 
 * **qdrant-client:** Added explicit, independently configured `Qdrant.Client`
@@ -142,7 +166,6 @@
 
 * Decrese project version
 * Update readme
-* Add jason dependency
 * Add tesla as HTTP client
 * Add docs dependency
 * Add CHANGELOG

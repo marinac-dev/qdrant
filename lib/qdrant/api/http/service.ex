@@ -30,6 +30,8 @@ defmodule Qdrant.Api.Http.Service do
 
   * `:anonymize` - anonymize the result
   * `:details_level` - level of detail, with a minimum of zero
+  * `:per_collection` - include per-collection request statistics
+  * `:timeout` - timeout for the request in seconds
 
   ## Example
 
@@ -39,21 +41,42 @@ defmodule Qdrant.Api.Http.Service do
   @spec telemetry(Client.t()) :: Types.result()
   @spec telemetry(Client.t(), Types.request_options()) :: Types.result()
   @spec telemetry() :: Types.result()
+  @spec telemetry(Types.request_options()) :: Types.result()
   @spec telemetry(boolean() | nil) :: Types.result()
   @spec telemetry(boolean() | nil, integer() | nil) :: Types.result()
+  @spec telemetry(boolean() | nil, integer() | nil, boolean() | nil, integer() | nil) :: Types.result()
   def telemetry, do: with_compat_client(&telemetry/1)
   def telemetry(%Client{} = client), do: telemetry(client, [])
+
+  def telemetry(opts) when is_list(opts), do: with_compat_client(&telemetry(&1, opts))
 
   def telemetry(anonymize),
     do: with_compat_client(&telemetry(&1, anonymize: anonymize))
 
-  def telemetry(%Client{} = client, opts) do
-    query = [anonymize: Keyword.get(opts, :anonymize), details_level: Keyword.get(opts, :details_level)]
+  def telemetry(%Client{} = client, opts) when is_list(opts) do
+    query = [
+      anonymize: Keyword.get(opts, :anonymize),
+      details_level: Keyword.get(opts, :details_level),
+      per_collection: Keyword.get(opts, :per_collection),
+      timeout: Keyword.get(opts, :timeout)
+    ]
+
     Request.request(client, :get, "/telemetry", query: query)
   end
 
   def telemetry(anonymize, details_level),
     do: with_compat_client(&telemetry(&1, anonymize: anonymize, details_level: details_level))
+
+  def telemetry(anonymize, details_level, per_collection, timeout),
+    do:
+      with_compat_client(
+        &telemetry(&1,
+          anonymize: anonymize,
+          details_level: details_level,
+          per_collection: per_collection,
+          timeout: timeout
+        )
+      )
 
   @doc """
   Collect Prometheus metrics data as text.
@@ -61,6 +84,8 @@ defmodule Qdrant.Api.Http.Service do
   Options:
 
   * `:anonymize` - anonymize the result
+  * `:per_collection` - include per-collection request metrics
+  * `:timeout` - timeout for the request in seconds
 
   ## Example
 
@@ -70,19 +95,30 @@ defmodule Qdrant.Api.Http.Service do
   @spec metrics(Client.t()) :: Types.result(String.t())
   @spec metrics(Client.t(), Types.request_options()) :: Types.result(String.t())
   @spec metrics() :: Types.result(String.t())
+  @spec metrics(Types.request_options()) :: Types.result(String.t())
   @spec metrics(boolean() | nil) :: Types.result(String.t())
+  @spec metrics(boolean() | nil, boolean() | nil, integer() | nil) :: Types.result(String.t())
   def metrics, do: with_compat_client(&metrics/1)
   def metrics(%Client{} = client), do: metrics(client, [])
+
+  def metrics(opts) when is_list(opts), do: with_compat_client(&metrics(&1, opts))
 
   def metrics(anonymize),
     do: with_compat_client(&metrics(&1, anonymize: anonymize))
 
-  def metrics(%Client{} = client, opts) do
+  def metrics(%Client{} = client, opts) when is_list(opts) do
     Request.request(client, :get, "/metrics",
-      query: [anonymize: Keyword.get(opts, :anonymize)],
+      query: [
+        anonymize: Keyword.get(opts, :anonymize),
+        per_collection: Keyword.get(opts, :per_collection),
+        timeout: Keyword.get(opts, :timeout)
+      ],
       response: :text
     )
   end
+
+  def metrics(anonymize, per_collection, timeout),
+    do: with_compat_client(&metrics(&1, anonymize: anonymize, per_collection: per_collection, timeout: timeout))
 
   @doc """
   Get lock options.
