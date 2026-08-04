@@ -15,7 +15,7 @@ defmodule Qdrant.Api.Http.Indexes do
 
   * `collection_name` **required** - Name of the collection
   * `body` **required** - Field index configuration
-  * `opts` - Options, including `:wait` and `:ordering`
+  * `opts` - Options, including `:wait`, `:ordering`, and `:timeout`
 
   ## Network example (not a doctest)
 
@@ -28,7 +28,11 @@ defmodule Qdrant.Api.Http.Indexes do
   @spec create_field_index(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result(map())
   def create_field_index(%Client{} = client, collection_name, body, opts) do
     Request.request(client, :put, "/collections/#{Request.segment(collection_name)}/index",
-      query: [wait: Keyword.get(opts, :wait), ordering: Keyword.get(opts, :ordering)],
+      query: [
+        wait: Keyword.get(opts, :wait),
+        ordering: Keyword.get(opts, :ordering),
+        timeout: Keyword.get(opts, :timeout)
+      ],
       body: body
     )
   end
@@ -41,6 +45,19 @@ defmodule Qdrant.Api.Http.Indexes do
         ) :: Types.result(map())
   def create_field_index(collection_name, body, wait, ordering) do
     with_default_client(&create_field_index(&1, collection_name, body, wait: wait, ordering: ordering))
+  end
+
+  @spec create_field_index(
+          String.t(),
+          Types.request_body(),
+          boolean() | nil,
+          Types.ordering() | nil,
+          integer() | nil
+        ) :: Types.result(map())
+  def create_field_index(collection_name, body, wait, ordering, timeout) do
+    with_default_client(
+      &create_field_index(&1, collection_name, body, wait: wait, ordering: ordering, timeout: timeout)
+    )
   end
 
   @spec create_field_index(Client.t(), String.t(), Types.request_body()) :: Types.result(map())
@@ -61,7 +78,7 @@ defmodule Qdrant.Api.Http.Indexes do
 
   * `collection_name` **required** - Name of the collection
   * `field_name` **required** - Name of the field to delete index for
-  * `opts` - Options, including `:wait` and `:ordering`
+  * `opts` - Options, including `:wait`, `:ordering`, and `:timeout`
 
   ## Network example (not a doctest)
 
@@ -76,7 +93,11 @@ defmodule Qdrant.Api.Http.Indexes do
       client,
       :delete,
       "/collections/#{Request.segment(collection_name)}/index/#{Request.segment(field_name)}",
-      query: [wait: Keyword.get(opts, :wait), ordering: Keyword.get(opts, :ordering)]
+      query: [
+        wait: Keyword.get(opts, :wait),
+        ordering: Keyword.get(opts, :ordering),
+        timeout: Keyword.get(opts, :timeout)
+      ]
     )
   end
 
@@ -88,6 +109,23 @@ defmodule Qdrant.Api.Http.Indexes do
         ) :: Types.result(map())
   def delete_field_index(collection_name, field_name, wait, ordering) do
     with_default_client(&delete_field_index(&1, collection_name, field_name, wait: wait, ordering: ordering))
+  end
+
+  @spec delete_field_index(
+          String.t(),
+          String.t(),
+          boolean() | nil,
+          Types.ordering() | nil,
+          integer() | nil
+        ) :: Types.result(map())
+  def delete_field_index(collection_name, field_name, wait, ordering, timeout) do
+    with_default_client(
+      &delete_field_index(&1, collection_name, field_name,
+        wait: wait,
+        ordering: ordering,
+        timeout: timeout
+      )
+    )
   end
 
   @spec delete_field_index(Client.t(), String.t(), String.t()) :: Types.result(map())

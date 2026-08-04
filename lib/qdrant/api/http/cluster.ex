@@ -180,6 +180,43 @@ defmodule Qdrant.Api.Http.Cluster do
     Request.request(client, :post, path, query: [timeout: Keyword.get(opts, :timeout)], body: body)
   end
 
+  @doc "List shard keys configured for a collection."
+  @spec list_shard_keys(Client.t(), String.t()) :: Types.result()
+  @spec list_shard_keys(String.t()) :: Types.result()
+  def list_shard_keys(collection_name),
+    do: with_compat_client(&list_shard_keys(&1, collection_name))
+
+  def list_shard_keys(%Client{} = client, collection_name) do
+    path = "/collections/#{Request.segment(collection_name)}/shards"
+    Request.request(client, :get, path)
+  end
+
+  @doc """
+  Collect cluster-wide telemetry, including peer, collection, transfer, and
+  resharding information.
+
+  Options are `:details_level` and `:timeout`.
+  """
+  @spec cluster_telemetry(Client.t(), Types.request_options()) :: Types.result()
+  @spec cluster_telemetry(Client.t()) :: Types.result()
+  @spec cluster_telemetry() :: Types.result()
+  @spec cluster_telemetry(Types.request_options()) :: Types.result()
+  @spec cluster_telemetry(integer() | nil, integer() | nil) :: Types.result()
+  def cluster_telemetry, do: with_compat_client(&cluster_telemetry(&1, []))
+  def cluster_telemetry(%Client{} = client), do: cluster_telemetry(client, [])
+
+  def cluster_telemetry(opts) when is_list(opts),
+    do: with_compat_client(&cluster_telemetry(&1, opts))
+
+  def cluster_telemetry(%Client{} = client, opts) when is_list(opts) do
+    Request.request(client, :get, "/cluster/telemetry",
+      query: [details_level: opts[:details_level], timeout: opts[:timeout]]
+    )
+  end
+
+  def cluster_telemetry(details_level, timeout),
+    do: with_compat_client(&cluster_telemetry(&1, details_level: details_level, timeout: timeout))
+
   defp with_compat_client(callback) do
     with {:ok, opts} <- Config.client_options(),
          {:ok, client} <- Client.new(default_insecure_api_key_option(opts)) do

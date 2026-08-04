@@ -38,6 +38,19 @@ defmodule Qdrant.Api.Http.ServiceTest do
     assert nil_env.url == "https://service.test/telemetry"
   end
 
+  test "telemetry and metrics support per-collection and timeout options" do
+    client = client(%{"result" => %{}}, 200, [{"content-type", "application/json"}])
+
+    assert {:ok, _} = Service.telemetry(client, per_collection: false, timeout: 0)
+    assert_receive {:request, telemetry_env}
+    assert telemetry_env.url == "https://service.test/telemetry?per_collection=false&timeout=0"
+
+    client = client("metric 1\n", 200, [{"content-type", "text/plain"}])
+    assert {:ok, "metric 1\n"} = Service.metrics(client, per_collection: true, timeout: 0)
+    assert_receive {:request, metrics_env}
+    assert metrics_env.url == "https://service.test/metrics?per_collection=true&timeout=0"
+  end
+
   test "metrics options preserve the plain-text response" do
     metrics = "# HELP app_info Qdrant build information\napp_info 1\n"
     client = client(metrics, 200, [{"content-type", "text/plain; version=0.0.4"}])

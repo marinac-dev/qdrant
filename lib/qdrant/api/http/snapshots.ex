@@ -324,6 +324,16 @@ defmodule Qdrant.Api.Http.Snapshots do
   def get_shard_snapshot(collection_name, shard_id, snapshot_name),
     do: with_default_client(&get_shard_snapshot(&1, collection_name, shard_id, snapshot_name, []))
 
+  @doc "Streams the current state of a shard as a bounded in-memory snapshot binary."
+  @spec stream_shard_snapshot(Client.t(), String.t(), integer()) :: Types.result(binary())
+  def stream_shard_snapshot(%Client{} = client, collection_name, shard_id) do
+    Request.request(client, :get, shard_stream_snapshot_path(collection_name, shard_id), response: :binary)
+  end
+
+  @spec stream_shard_snapshot(String.t(), integer()) :: Types.result(binary())
+  def stream_shard_snapshot(collection_name, shard_id),
+    do: with_default_client(&stream_shard_snapshot(&1, collection_name, shard_id))
+
   @doc "Streams a shard snapshot to `destination`."
   @spec download_shard_snapshot_to_file(
           Client.t(),
@@ -561,6 +571,9 @@ defmodule Qdrant.Api.Http.Snapshots do
   defp shard_snapshot_path(collection_name, shard_id, snapshot_name),
     do: shard_snapshots_path(collection_name, shard_id) <> "/#{Request.segment(snapshot_name)}"
 
+  defp shard_stream_snapshot_path(collection_name, shard_id),
+    do: "/collections/#{Request.segment(collection_name)}/shards/#{Request.segment(shard_id)}/snapshot"
+
   defp download_to_file(%Client{} = client, path, destination) do
     url = client.url <> client.base_path <> path
 
@@ -598,8 +611,8 @@ defmodule Qdrant.Api.Http.Snapshots do
       File.open(destination, [:write, :binary], fn file ->
         cond do
           is_binary(body) -> IO.binwrite(file, body)
-          Enumerable.impl_for(body) -> Enum.reduce_while(body, :ok, &write_chunk(file, &1, &2))
           is_function(body, 2) -> write_stream_body(file, body)
+          Enumerable.impl_for(body) -> Enum.reduce_while(body, :ok, &write_chunk(file, &1, &2))
           true -> {:error, {:unsupported_stream_body, body}}
         end
       end)

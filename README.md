@@ -3,7 +3,7 @@
 This library is under active development and subject to change. Use the latest
 release for production applications.
 
-An Elixir REST client targeting Qdrant 1.15.x. Successful calls preserve the
+An Elixir REST client targeting Qdrant 1.18.x. Successful calls preserve the
 complete Qdrant response envelope as `{:ok, body}`. Failures return
 `{:error, %Qdrant.Error{}}` with HTTP and response context where available.
 
@@ -20,7 +20,7 @@ documentation on [HexDocs](https://hexdocs.pm/qdrant/readme.html). Add it to
 ```elixir
 def deps do
   [
-    {:qdrant, "~> 0.1.0"}
+    {:qdrant, "~> 0.1.18"}
   ]
 end
 ```
@@ -66,10 +66,11 @@ ending in `.cloud.qdrant.io` require a key by default.
 The client provides endpoint modules for:
 
 * Collections and payload indexes
+* Named vectors and collection optimization progress
 * Points, search, recommendation, discovery, and query operations
 * Collection aliases
-* Collection, full, and shard snapshots
-* Cluster and service operations, including health checks and metrics
+* Collection, full, and shard snapshots, including current shard streaming
+* Cluster and service operations, including shard keys, telemetry, health checks, and metrics
 
 For the complete public API, see the [module documentation](https://hexdocs.pm/qdrant).
 
@@ -206,7 +207,7 @@ mix docs
 mix hex.build
 ```
 
-Integration tests are opt-in and expect Qdrant 1.15.x at `QDRANT_URL`:
+Integration tests are opt-in and expect Qdrant 1.18.x at `QDRANT_URL`:
 
 ```bash
 QDRANT_INTEGRATION=true QDRANT_URL=http://127.0.0.1:6333 mix test --only integration

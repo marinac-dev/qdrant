@@ -10,7 +10,8 @@ defmodule Qdrant.Api.Http.Points do
   alias Qdrant.{Client, Config, Types}
 
   @consistency [:consistency]
-  @write_options [:wait, :ordering]
+  @get_points_options [:consistency, :timeout]
+  @write_options [:wait, :ordering, :timeout]
   @search_options [:consistency, :timeout]
   @timeout [:timeout]
 
@@ -60,12 +61,15 @@ defmodule Qdrant.Api.Http.Points do
   def get_point(collection_name, id), do: compat(:get_point, [collection_name, id, []])
 
   @doc """
-  Retrieves points by ID. Options: `:consistency`.
+  Retrieves points by ID. Options: `:consistency`, `:timeout`.
   """
   @spec get_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def get_points(%Client{} = client, collection_name, body, opts) do
-    request(client, :post, points_path(collection_name), body, opts, @consistency)
+    request(client, :post, points_path(collection_name), body, opts, @get_points_options)
   end
+
+  def get_points(collection_name, body, consistency, timeout),
+    do: compat(:get_points, [collection_name, body, [consistency: consistency, timeout: timeout]])
 
   def get_points(%Client{} = client, collection_name, body), do: get_points(client, collection_name, body, [])
 
@@ -75,7 +79,7 @@ defmodule Qdrant.Api.Http.Points do
   def get_points(collection_name, body), do: compat(:get_points, [collection_name, body, []])
 
   @doc """
-  Inserts or replaces points. Options: `:wait`, `:ordering`.
+  Inserts or replaces points. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec upsert_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def upsert_points(%Client{} = client, collection_name, body, opts) do
@@ -85,12 +89,15 @@ defmodule Qdrant.Api.Http.Points do
   def upsert_points(collection_name, body, wait, ordering),
     do: compat(:upsert_points, [collection_name, body, [wait: wait, ordering: ordering]])
 
+  def upsert_points(collection_name, body, wait, ordering, timeout),
+    do: compat(:upsert_points, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
+
   def upsert_points(%Client{} = client, collection_name, body), do: upsert_points(client, collection_name, body, [])
   def upsert_points(collection_name, body, wait), do: compat(:upsert_points, [collection_name, body, [wait: wait]])
   def upsert_points(collection_name, body), do: compat(:upsert_points, [collection_name, body, [wait: false]])
 
   @doc """
-  Deletes points selected by the request body. Options: `:wait`, `:ordering`.
+  Deletes points selected by the request body. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec delete_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def delete_points(%Client{} = client, collection_name, body, opts) do
@@ -100,12 +107,15 @@ defmodule Qdrant.Api.Http.Points do
   def delete_points(collection_name, body, wait, ordering),
     do: compat(:delete_points, [collection_name, body, [wait: wait, ordering: ordering]])
 
+  def delete_points(collection_name, body, wait, ordering, timeout),
+    do: compat(:delete_points, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
+
   def delete_points(%Client{} = client, collection_name, body), do: delete_points(client, collection_name, body, [])
   def delete_points(collection_name, body, wait), do: compat(:delete_points, [collection_name, body, [wait: wait]])
   def delete_points(collection_name, body), do: compat(:delete_points, [collection_name, body, [wait: false]])
 
   @doc """
-  Sets payload values. Options: `:wait`, `:ordering`.
+  Sets payload values. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec set_payload(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def set_payload(%Client{} = client, collection_name, body, opts) do
@@ -115,12 +125,15 @@ defmodule Qdrant.Api.Http.Points do
   def set_payload(collection_name, body, wait, ordering),
     do: compat(:set_payload, [collection_name, body, [wait: wait, ordering: ordering]])
 
+  def set_payload(collection_name, body, wait, ordering, timeout),
+    do: compat(:set_payload, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
+
   def set_payload(%Client{} = client, collection_name, body), do: set_payload(client, collection_name, body, [])
   def set_payload(collection_name, body, wait), do: compat(:set_payload, [collection_name, body, [wait: wait]])
   def set_payload(collection_name, body), do: compat(:set_payload, [collection_name, body, [wait: false]])
 
   @doc """
-  Replaces complete payloads. Options: `:wait`, `:ordering`.
+  Replaces complete payloads. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec overwrite_payload(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def overwrite_payload(%Client{} = client, collection_name, body, opts) do
@@ -129,6 +142,9 @@ defmodule Qdrant.Api.Http.Points do
 
   def overwrite_payload(collection_name, body, wait, ordering),
     do: compat(:overwrite_payload, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def overwrite_payload(collection_name, body, wait, ordering, timeout),
+    do: compat(:overwrite_payload, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
 
   def overwrite_payload(%Client{} = client, collection_name, body),
     do: overwrite_payload(client, collection_name, body, [])
@@ -139,7 +155,7 @@ defmodule Qdrant.Api.Http.Points do
   def overwrite_payload(collection_name, body), do: compat(:overwrite_payload, [collection_name, body, [wait: false]])
 
   @doc """
-  Deletes payload keys. Options: `:wait`, `:ordering`.
+  Deletes payload keys. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec delete_payload(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def delete_payload(%Client{} = client, collection_name, body, opts) do
@@ -149,13 +165,16 @@ defmodule Qdrant.Api.Http.Points do
   def delete_payload(collection_name, body, wait, ordering),
     do: compat(:delete_payload, [collection_name, body, [wait: wait, ordering: ordering]])
 
+  def delete_payload(collection_name, body, wait, ordering, timeout),
+    do: compat(:delete_payload, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
+
   def delete_payload(%Client{} = client, collection_name, body), do: delete_payload(client, collection_name, body, [])
   def delete_payload(collection_name, body, wait), do: compat(:delete_payload, [collection_name, body, [wait: wait]])
   def delete_payload(collection_name, body), do: compat(:delete_payload, [collection_name, body, [wait: false]])
 
   @doc """
   Clears payloads selected by a map such as `%{points: [1, 2]}` or
-  `%{filter: %{must: [...]}}`. Options: `:wait`, `:ordering`.
+  `%{filter: %{must: [...]}}`. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec clear_payload(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def clear_payload(%Client{} = client, collection_name, body, opts) do
@@ -165,12 +184,15 @@ defmodule Qdrant.Api.Http.Points do
   def clear_payload(collection_name, body, wait, ordering),
     do: compat(:clear_payload, [collection_name, body, [wait: wait, ordering: ordering]])
 
+  def clear_payload(collection_name, body, wait, ordering, timeout),
+    do: compat(:clear_payload, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
+
   def clear_payload(%Client{} = client, collection_name, body), do: clear_payload(client, collection_name, body, [])
   def clear_payload(collection_name, body, wait), do: compat(:clear_payload, [collection_name, body, [wait: wait]])
   def clear_payload(collection_name, body), do: compat(:clear_payload, [collection_name, body, [wait: false]])
 
   @doc """
-  Applies a batch of point updates. Options: `:wait`, `:ordering`.
+  Applies a batch of point updates. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec batch_update_points(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def batch_update_points(%Client{} = client, collection_name, body, opts) do
@@ -179,6 +201,9 @@ defmodule Qdrant.Api.Http.Points do
 
   def batch_update_points(collection_name, body, wait, ordering),
     do: compat(:batch_update_points, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def batch_update_points(collection_name, body, wait, ordering, timeout),
+    do: compat(:batch_update_points, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
 
   def batch_update_points(%Client{} = client, collection_name, body),
     do: batch_update_points(client, collection_name, body, [])
@@ -270,7 +295,7 @@ defmodule Qdrant.Api.Http.Points do
   def recommend_points_batch(collection_name, body), do: compat(:recommend_points_batch, [collection_name, body, []])
 
   @doc """
-  Updates vectors. Options: `:wait`, `:ordering`.
+  Updates vectors. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec update_vectors(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def update_vectors(%Client{} = client, collection_name, body, opts) do
@@ -280,12 +305,15 @@ defmodule Qdrant.Api.Http.Points do
   def update_vectors(collection_name, body, wait, ordering),
     do: compat(:update_vectors, [collection_name, body, [wait: wait, ordering: ordering]])
 
+  def update_vectors(collection_name, body, wait, ordering, timeout),
+    do: compat(:update_vectors, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
+
   def update_vectors(%Client{} = client, collection_name, body), do: update_vectors(client, collection_name, body, [])
   def update_vectors(collection_name, body, wait), do: compat(:update_vectors, [collection_name, body, [wait: wait]])
   def update_vectors(collection_name, body), do: compat(:update_vectors, [collection_name, body, [wait: false]])
 
   @doc """
-  Deletes vectors. Options: `:wait`, `:ordering`.
+  Deletes vectors. Options: `:wait`, `:ordering`, `:timeout`.
   """
   @spec delete_vectors(Client.t(), String.t(), Types.request_body(), Types.request_options()) :: Types.result()
   def delete_vectors(%Client{} = client, collection_name, body, opts) do
@@ -294,6 +322,9 @@ defmodule Qdrant.Api.Http.Points do
 
   def delete_vectors(collection_name, body, wait, ordering),
     do: compat(:delete_vectors, [collection_name, body, [wait: wait, ordering: ordering]])
+
+  def delete_vectors(collection_name, body, wait, ordering, timeout),
+    do: compat(:delete_vectors, [collection_name, body, [wait: wait, ordering: ordering, timeout: timeout]])
 
   def delete_vectors(%Client{} = client, collection_name, body), do: delete_vectors(client, collection_name, body, [])
   def delete_vectors(collection_name, body, wait), do: compat(:delete_vectors, [collection_name, body, [wait: wait]])

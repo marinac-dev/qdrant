@@ -41,6 +41,51 @@ defmodule Qdrant.Api.Http.CollectionsTest do
     assert_request(:delete, "https://example.test/collections/team%2Fblue")
   end
 
+  test "supports named vectors and optimization progress" do
+    client = client(self())
+    body = %{dense: %{size: 3, distance: "Cosine"}}
+
+    assert {:ok, %{"result" => true}} =
+             Collections.create_vector_name(client, "team/blue", "embedding/vector", body,
+               wait: false,
+               ordering: :strong,
+               timeout: 7
+             )
+
+    create_env =
+      assert_request(
+        :put,
+        "https://example.test/collections/team%2Fblue/vectors/embedding%2Fvector?wait=false&ordering=strong&timeout=7"
+      )
+
+    assert URI.decode_query(URI.parse(create_env.url).query) == %{
+             "ordering" => "strong",
+             "timeout" => "7",
+             "wait" => "false"
+           }
+
+    assert JSON.decode!(create_env.body) == %{"dense" => %{"distance" => "Cosine", "size" => 3}}
+
+    assert {:ok, %{"result" => true}} =
+             Collections.delete_vector_name(client, "team/blue", "embedding/vector", timeout: 0)
+
+    delete_env =
+      assert_request(
+        :delete,
+        "https://example.test/collections/team%2Fblue/vectors/embedding%2Fvector?timeout=0"
+      )
+
+    assert delete_env.body == nil
+
+    assert {:ok, %{"result" => true}} =
+             Collections.get_optimizations(client, "team/blue", with: [:queued, :completed], completed_limit: 0)
+
+    assert_request(
+      :get,
+      "https://example.test/collections/team%2Fblue/optimizations?with=queued%2Ccompleted&completed_limit=0"
+    )
+  end
+
   test "returns a structured error for a non-success response" do
     client = client(self(), 409)
 

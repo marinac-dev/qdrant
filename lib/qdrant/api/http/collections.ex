@@ -206,6 +206,142 @@ defmodule Qdrant.Api.Http.Collections do
   @spec collection_exists(String.t()) :: Types.result(map())
   def collection_exists(collection_name), do: with_default_client(&collection_exists(&1, collection_name, []))
 
+  @doc """
+  Creates a named vector on an existing collection.
+
+  The body contains either a dense vector configuration, such as
+  `%{dense: %{size: 768, distance: "Cosine"}}`, or a sparse configuration.
+  Options are `:wait`, `:ordering`, and `:timeout`.
+  """
+  @spec create_vector_name(
+          Client.t(),
+          String.t(),
+          String.t(),
+          Types.request_body(),
+          Types.request_options()
+        ) :: Types.result(map())
+  def create_vector_name(%Client{} = client, collection_name, vector_name, body, opts) when is_list(opts) do
+    Request.request(
+      client,
+      :put,
+      "/collections/#{Request.segment(collection_name)}/vectors/#{Request.segment(vector_name)}",
+      query: [wait: opts[:wait], ordering: opts[:ordering], timeout: opts[:timeout]],
+      body: body
+    )
+  end
+
+  @spec create_vector_name(
+          String.t(),
+          String.t(),
+          Types.request_body(),
+          boolean() | nil,
+          Types.ordering() | nil
+        ) :: Types.result(map())
+  def create_vector_name(collection_name, vector_name, body, wait, ordering),
+    do: create_vector_name(collection_name, vector_name, body, wait, ordering, nil)
+
+  @spec create_vector_name(Client.t(), String.t(), String.t(), Types.request_body()) :: Types.result(map())
+  def create_vector_name(%Client{} = client, collection_name, vector_name, body),
+    do: create_vector_name(client, collection_name, vector_name, body, [])
+
+  @spec create_vector_name(String.t(), String.t(), Types.request_body(), boolean() | nil) :: Types.result(map())
+  def create_vector_name(collection_name, vector_name, body, wait),
+    do: create_vector_name(collection_name, vector_name, body, wait, nil, nil)
+
+  @spec create_vector_name(String.t(), String.t(), Types.request_body()) :: Types.result(map())
+  def create_vector_name(collection_name, vector_name, body),
+    do: create_vector_name(collection_name, vector_name, body, nil, nil, nil)
+
+  @spec create_vector_name(
+          String.t(),
+          String.t(),
+          Types.request_body(),
+          boolean() | nil,
+          Types.ordering() | nil,
+          integer() | nil
+        ) :: Types.result(map())
+  def create_vector_name(collection_name, vector_name, body, wait, ordering, timeout) do
+    with_default_client(
+      &create_vector_name(&1, collection_name, vector_name, body,
+        wait: wait,
+        ordering: ordering,
+        timeout: timeout
+      )
+    )
+  end
+
+  @doc "Deletes a named vector from an existing collection."
+  @spec delete_vector_name(Client.t(), String.t(), String.t(), Types.request_options()) :: Types.result(map())
+  def delete_vector_name(%Client{} = client, collection_name, vector_name, opts) when is_list(opts) do
+    Request.request(
+      client,
+      :delete,
+      "/collections/#{Request.segment(collection_name)}/vectors/#{Request.segment(vector_name)}",
+      query: [wait: opts[:wait], ordering: opts[:ordering], timeout: opts[:timeout]]
+    )
+  end
+
+  @spec delete_vector_name(String.t(), String.t(), boolean() | nil, Types.ordering() | nil) :: Types.result(map())
+  def delete_vector_name(collection_name, vector_name, wait, ordering),
+    do: delete_vector_name(collection_name, vector_name, wait, ordering, nil)
+
+  @spec delete_vector_name(Client.t(), String.t(), String.t()) :: Types.result(map())
+  def delete_vector_name(%Client{} = client, collection_name, vector_name),
+    do: delete_vector_name(client, collection_name, vector_name, [])
+
+  @spec delete_vector_name(String.t(), String.t(), boolean() | nil) :: Types.result(map())
+  def delete_vector_name(collection_name, vector_name, wait),
+    do: delete_vector_name(collection_name, vector_name, wait, nil, nil)
+
+  @spec delete_vector_name(String.t(), String.t()) :: Types.result(map())
+  def delete_vector_name(collection_name, vector_name),
+    do: delete_vector_name(collection_name, vector_name, nil, nil, nil)
+
+  @spec delete_vector_name(
+          String.t(),
+          String.t(),
+          boolean() | nil,
+          Types.ordering() | nil,
+          integer() | nil
+        ) :: Types.result(map())
+  def delete_vector_name(collection_name, vector_name, wait, ordering, timeout) do
+    with_default_client(
+      &delete_vector_name(&1, collection_name, vector_name,
+        wait: wait,
+        ordering: ordering,
+        timeout: timeout
+      )
+    )
+  end
+
+  @doc """
+  Returns optimization progress for a collection.
+
+  `:with` accepts a comma-separated string or a list containing `:queued`,
+  `:completed`, and `:idle_segments`. `:completed_limit` limits completed
+  optimizations returned by Qdrant.
+  """
+  @spec get_optimizations(Client.t(), String.t(), Types.request_options()) :: Types.result(map())
+  def get_optimizations(%Client{} = client, collection_name, opts) when is_list(opts) do
+    query = [with: optimization_fields(opts[:with]), completed_limit: opts[:completed_limit]]
+
+    Request.request(client, :get, "/collections/#{Request.segment(collection_name)}/optimizations", query: query)
+  end
+
+  @spec get_optimizations(Client.t(), String.t()) :: Types.result(map())
+  def get_optimizations(%Client{} = client, collection_name),
+    do: get_optimizations(client, collection_name, [])
+
+  @spec get_optimizations(String.t(), Types.request_options()) :: Types.result(map())
+  def get_optimizations(collection_name, opts) when is_list(opts),
+    do: with_default_client(&get_optimizations(&1, collection_name, opts))
+
+  @spec get_optimizations(String.t()) :: Types.result(map())
+  def get_optimizations(collection_name), do: with_default_client(&get_optimizations(&1, collection_name, []))
+
+  defp optimization_fields(value) when is_list(value), do: Enum.map_join(value, ",", &to_string/1)
+  defp optimization_fields(value), do: value
+
   defp with_default_client(operation) do
     with {:ok, opts} <- Config.client_options(),
          {:ok, client} <- Client.new(opts) do
