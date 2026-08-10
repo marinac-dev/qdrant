@@ -24,21 +24,65 @@ defmodule Qdrant.IntegrationCase do
   end
 
   def setup_collection do
-    collection = "elixir-client-#{System.unique_integer([:positive, :monotonic])}"
-
-    client =
-      Qdrant.Client.new!(
-        url: System.get_env("QDRANT_URL") || "http://127.0.0.1:6333",
-        api_key: System.get_env("QDRANT_API_KEY")
-      )
+    collection = unique_name("collection")
+    client = client()
 
     assert {:ok, _} =
              Qdrant.create_collection(client, collection, %{
                vectors: %{size: @embedding_dimensions, distance: @distance}
              })
 
-    on_exit(fn -> Qdrant.delete_collection(client, collection) end)
+    on_exit(fn -> delete_collection(client, collection) end)
     {:ok, client: client, collection: collection}
+  end
+
+  def client do
+    Qdrant.Client.new!(
+      url: System.get_env("QDRANT_URL") || "http://127.0.0.1:6333",
+      api_key: System.get_env("QDRANT_API_KEY")
+    )
+  end
+
+  def unique_name(prefix), do: "elixir-client-#{prefix}-#{System.unique_integer([:positive, :monotonic])}"
+
+  def delete_collection(client, collection) do
+    case Qdrant.delete_collection(client, collection, wait: true) do
+      {:ok, _} -> :ok
+      {:error, %Qdrant.Error{status: 404}} -> :ok
+      _ -> :ok
+    end
+  end
+
+  def create_named_collection(client, collection) do
+    assert {:ok, _} =
+             Qdrant.create_collection(client, collection, %{
+               vectors: %{dense: %{size: @embedding_dimensions, distance: @distance}}
+             })
+
+    on_exit(fn -> delete_collection(client, collection) end)
+    collection
+  end
+
+  def shard_id(client, collection) do
+    with {:ok, %{"result" => %{"local_shards" => [%{"shard_id" => id} | _]}}} <-
+           Qdrant.collection_cluster_info(client, collection) do
+      id
+    else
+      _ -> nil
+    end
+  end
+
+  def unsupported?(%Qdrant.Error{status: status}) when status in [400, 404, 405, 406, 409, 501], do: true
+  def unsupported?(_), do: false
+
+  def assert_supported({:ok, response}), do: response
+
+  def assert_supported({:error, error}) do
+    if unsupported?(error) do
+      flunk("conditional integration capability is unavailable: #{inspect(error)}")
+    else
+      flunk("integration request failed: #{inspect(error)}")
+    end
   end
 
   def seed_points(client, collection) do

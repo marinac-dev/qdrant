@@ -213,6 +213,11 @@ Integration tests are opt-in and expect Qdrant 1.18.x at `QDRANT_URL`:
 QDRANT_INTEGRATION=true QDRANT_URL=http://127.0.0.1:6333 mix test --only integration
 ```
 
+Authenticated integration tests use the same command with `QDRANT_API_KEY` set
+to a key accepted by the configured server. Cluster mutation tests additionally
+require `QDRANT_CLUSTER_INTEGRATION=true` and must target a disposable cluster;
+they are never enabled by the default single-node profile.
+
 ## Contributing
 
 * Fork the repository
